@@ -8,27 +8,31 @@ internal data class WorkoutPlan(
     val rounds: Int,
     val hasVoice: Boolean,
     val vibration: Boolean,
+    val preparationSeconds: Int = 0,
 ) {
     init {
         require(activeSeconds in 1..MAX_ROUND_SECONDS)
         require(restSeconds in 0..MAX_ROUND_SECONDS - activeSeconds)
         require(rounds in 0..9999)
+        require(preparationSeconds in 0..60)
     }
 
     fun phaseAt(elapsed: Long): Phase {
         val active = activeSeconds * 1000L
         val rest = restSeconds * 1000L
-        val total = rounds * (active + rest) - rest
+        val preparation = preparationSeconds * 1000L
+        if (elapsed < preparation) return Phase(Stage.READY, 1, 0, preparation)
+        val total = preparation + rounds * (active + rest) - rest
         if (rounds != 0 && elapsed >= total) return Phase(Stage.COMPLETE, rounds.toLong(), total, total)
-        val index = elapsed / (active + rest)
-        val start = index * (active + rest)
+        val index = (elapsed - preparation) / (active + rest)
+        val start = preparation + index * (active + rest)
         val activeEnd = start + active
         return if (elapsed < activeEnd) Phase(Stage.ACTIVE, index + 1, start, activeEnd)
         else Phase(Stage.REST, index + 1, activeEnd, start + active + rest)
     }
 }
 
-internal enum class Stage(val label: String) { ACTIVE("Active"), REST("Rest"), COMPLETE("Workout complete") }
+internal enum class Stage(val label: String) { READY("Get ready"), ACTIVE("Active"), REST("Rest"), COMPLETE("Workout complete") }
 
 internal data class Phase(val stage: Stage, val round: Long, val start: Long, val end: Long)
 

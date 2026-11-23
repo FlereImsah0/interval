@@ -21,6 +21,8 @@ const headings = { setup: byId('setup-title'), settings: byId('settings-title'),
 const welcomeKey = 'interval-timer-welcome-seen';
 const themeQuery = matchMedia('(prefers-color-scheme: dark)');
 const touchPatterns = { action: 8, navigation: 14, confirmation: [9, 24, 12] };
+const android = window.IntervalAndroid;
+const androidMessage = (action, details = {}) => android?.postMessage(JSON.stringify({ action, ...details }));
 const tones = new Set();
 const intervalKinds = ['active', 'rest'];
 const durationUnits = ['Hours', 'Minutes', 'Seconds'];
@@ -34,9 +36,9 @@ const cues = {
   complete: { frequency: 220, seconds: 0.9, vibration: 950 },
   warning: { frequency: 260, seconds: 0.18, vibration: 95 },
 };
-const canVibrate = typeof navigator.vibrate === 'function';
+const canVibrate = Boolean(android) || typeof navigator.vibrate === 'function';
 const audioType = window.AudioContext ?? window.webkitAudioContext;
-const canWake = 'wakeLock' in navigator;
+const canWake = Boolean(android) || 'wakeLock' in navigator;
 let favorites = [];
 let selectedFavorite = null;
 let session = null;
@@ -52,6 +54,10 @@ let setupScroll = 0;
 let sessionMode = 'general';
 let activeTouch = null;
 let savedPreferences;
+let nativeId = null;
+let ignoredNativeId = null;
+let nativeStarting = false;
+let nativeAwake = false;
 
 function values(form, names) {
   return Object.fromEntries(names.map((name) => {
@@ -148,6 +154,7 @@ function updateSettings() {
   const theme = pref('theme').value;
   document.documentElement.dataset.theme = theme;
   const dark = theme === 'dark' || (theme === 'auto' && themeQuery.matches);
+  androidMessage('theme', { dark });
   document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
     meta.content = dark ? '#0c1018' : '#f3f5f3';
   });
@@ -423,7 +430,7 @@ document.addEventListener('pointerdown', (event) => {
   if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
   if (button.classList.contains('start') && pref('vibration').checked && !session) return;
   activeTouch = event.pointerId;
-  navigator.vibrate(touchPatterns[button.dataset.touch ?? 'action']);
+  vibrate(touchPatterns[button.dataset.touch ?? 'action']);
 });
 document.addEventListener('pointerup', (event) => {
   if (activeTouch === event.pointerId) activeTouch = null;
@@ -431,8 +438,13 @@ document.addEventListener('pointerup', (event) => {
 document.addEventListener('pointercancel', (event) => {
   if (activeTouch !== event.pointerId) return;
   activeTouch = null;
-  navigator.vibrate(0);
+  vibrate(0);
 });
+
+function vibrate(pattern) {
+  if (android) androidMessage('touch', { pattern });
+  else if (canVibrate) navigator.vibrate(pattern);
+}
 
 function enableAudio() {
   if (!audioType || !audioVolume()) return;
@@ -498,6 +510,12 @@ function feedback(kind, duration = 0) {
 }
 
 async function keepAwake() {
+  if (android) {
+    const enabled = workoutIsRunning() && !document.hidden && pref('awake').checked;
+    if (nativeAwake !== enabled) androidMessage('screenAwake', { enabled });
+    nativeAwake = enabled;
+    return;
+  }
   if (!workoutIsRunning() || !canWake || !pref('awake').checked ||
       document.visibilityState !== 'visible' || wakePending || (wake && !wake.released)) return;
   wakePending = true;
@@ -515,6 +533,10 @@ async function keepAwake() {
 }
 
 function releaseAwake() {
+  if (nativeAwake) {
+    androidMessage('screenAwake', { enabled: false });
+    nativeAwake = false;
+  }
   if (!wake) return;
   wake.release().catch(() => {});
   wake = null;
@@ -553,7 +575,7 @@ function render() {
   if (screen === 'setup') updateHomeAction(state);
   const phaseKey = state.kind + ':' + state.round;
   const maxLateness = document.hidden ? 950 : 300;
-  if (!state.paused) {
+  if (!android && !state.paused) {
     const entered = phaseKey !== lastPhase;
     if (entered && state.elapsed - state.start <= maxLateness && (state.kind !== 'complete' || pref('finish').checked)) {
       feedback(state.kind, state.end - state.start);
@@ -588,10 +610,14 @@ function silenceFeedback() {
   tones.clear();
   if (audio?.state === 'running') audio.suspend().catch(() => {});
   voicePlayer.stop();
-  if (canVibrate) navigator.vibrate(0);
+  if (!android && canVibrate) navigator.vibrate(0);
 }
 
 function pauseSession() {
+  if (android) {
+    androidMessage('pause');
+    return;
+  }
   session.pause();
   clearTimeout(tick);
   releaseAwake();
@@ -599,6 +625,10 @@ function pauseSession() {
 }
 
 function resumeSession() {
+  if (android) {
+    androidMessage('resume');
+    return;
+  }
   enableAudio();
   session.resume();
   void keepAwake();
@@ -696,6 +726,23 @@ window.addEventListener('scroll', refreshHeader, { passive: true });
 themeQuery.addEventListener('change', updateSettings);
 
 function start(plan, mode) {
+  if (android) {
+    if (nativeStarting) return;
+    nativeStarting = true;
+    sessionMode = mode;
+    ignoredNativeId = nativeId;
+    androidMessage('start', {
+      active: plan.active / 1000, rest: plan.rest / 1000, prep: plan.prep / 1000,
+      rounds: plan.rounds === Infinity ? 0 : plan.rounds,
+      mode, voice: audioMode() === 'voice', volume: Number(pref('volume').value),
+      vibration: pref('vibration').checked, pattern: pref('pattern').value,
+      finish: pref('finish').checked,
+      warning: pref('warning').value === 'custom' ? pref('warningSeconds').value : pref('warning').value,
+      goWord: mode === 'custom' ? pref('goWord').value.trim() || 'Go' : '',
+      restWord: mode === 'custom' ? pref('restWord').value.trim() || 'Rest' : '',
+    });
+    return;
+  }
   enableAudio();
   session = new Workout(plan);
   sessionMode = mode;
@@ -729,6 +776,11 @@ pause.addEventListener('click', () => {
   render();
 });
 function endSession() {
+  if (android) {
+    ignoredNativeId = nativeId;
+    nativeId = null;
+    androidMessage('stop');
+  }
   session = null;
   clearTimeout(tick);
   releaseAwake();
@@ -750,7 +802,7 @@ document.addEventListener('visibilitychange', () => {
   if (!session) return;
   if (document.hidden) releaseAwake();
   else if (workoutIsRunning()) {
-    enableAudio();
+    if (!android) enableAudio();
     void keepAwake();
   }
   render();
@@ -780,4 +832,59 @@ if (recognized && history.state?.intervalScreen === direct && history.state?.int
     if (!seen) openScreen('welcome');
   }
 }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
+if (android) {
+  const overlay = byId('android-overlay');
+  overlay.closest('label').hidden = false;
+  overlay.addEventListener('change', () => androidMessage('overlay', { enabled: overlay.checked }));
+  window.intervalAndroidPreferences = (settings) => {
+    overlay.checked = settings.overlay;
+    try {
+      if (settings.active === undefined || localStorage.getItem(storageKey)) return;
+      setIntervalDuration('active', settings.active);
+      setIntervalDuration('rest', settings.rest);
+      apply(setup, { unlimited: settings.rounds === 0, rounds: settings.rounds || 10 });
+      apply(preferences, { audioMode: settings.voice ? 'voice' : 'sound', vibration: settings.vibration });
+      savedPreferences = values(preferences, preferenceNames);
+      save();
+      updateSettings();
+    } catch { /* Storage is optional. */ }
+  };
+  window.intervalAndroidStartFailed = () => {
+    nativeStarting = false;
+    ignoredNativeId = null;
+    setText(byId('native-workout-error'), 'Could not start the workout. Try again.');
+  };
+  window.intervalAndroidState = (snapshot) => {
+    if (!snapshot) {
+      if (nativeStarting || !session || session.snapshot().kind === 'complete') return;
+      session = null;
+      nativeId = null;
+      clearTimeout(tick);
+      releaseAwake();
+      if (screen === 'workout') goBack();
+      else updateHomeAction();
+      return;
+    }
+    if (snapshot.id === ignoredNativeId) return;
+    const newWorkout = nativeId !== snapshot.id;
+    nativeId = snapshot.id;
+    nativeStarting = false;
+    setText(byId('native-workout-error'), '');
+    const now = performance.now();
+    if (newWorkout) {
+      sessionMode = snapshot.mode;
+      session = new Workout({
+        active: snapshot.active, rest: snapshot.rest, prep: snapshot.prep,
+        rounds: snapshot.rounds || Infinity,
+      });
+    }
+    session.origin = now - snapshot.elapsed;
+    session.pausedAt = snapshot.paused ? now : null;
+    if (newWorkout && screen !== 'workout') openScreen('workout');
+    else render();
+    void keepAwake();
+  };
+  androidMessage('ready');
+} else if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
+}

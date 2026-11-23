@@ -6,8 +6,7 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
+import android.webkit.WebView
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -15,20 +14,30 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeFalse
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class WorkoutServiceTest {
     @Test
     fun foregroundWorkoutKeepsTimeWhenTheActivityLeavesTheScreen() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        assumeFalse(instrumentation.targetContext.packageManager.hasSystemFeature("android.hardware.type.watch"))
         ActivityScenario.launch(TimerActivity::class.java).use { activity ->
-            activity.onActivity { screen ->
-                val views = screen.window.decorView.descendants().toList()
-                views.filterIsInstance<EditText>().zip(listOf("1", "1", "10"))
-                    .forEach { (field, text) -> field.setText(text) }
-                views.filterIsInstance<Button>().first { it.text == "Start workout" }.performClick()
-            }
-            instrumentation.waitForIdleSync()
+            waitFor { evaluate(activity, "Boolean(window.intervalAndroidState)") == "true" }
+            evaluate(activity, """
+                if (!document.getElementById('welcome').hidden) document.getElementById('welcome-start').click();
+            """.trimIndent())
+            waitFor { evaluate(activity, "!document.getElementById('setup').hidden") == "true" }
+            evaluate(activity, """
+                const form = document.getElementById('setup');
+                form.elements.activeSeconds.value = '01';
+                form.elements.restSeconds.value = '01';
+                form.elements.rounds.value = '10';
+                form.requestSubmit();
+            """.trimIndent())
+            waitFor { evaluate(activity, "!document.getElementById('workout').hidden") == "true" }
             activity.moveToState(Lifecycle.State.CREATED)
             var snapshot: TimerSnapshot? = null
             val limit = android.os.SystemClock.elapsedRealtime() + 6_000
@@ -41,11 +50,8 @@ class WorkoutServiceTest {
             assertTrue("The second round began without the app screen", snapshot!!.phase.round >= 2)
 
             activity.moveToState(Lifecycle.State.RESUMED)
-            activity.onActivity { screen ->
-                val buttons = screen.window.decorView.descendants().filterIsInstance<Button>().toList()
-                buttons.first { it.text == "End workout" }.performClick()
-            }
-            instrumentation.waitForIdleSync()
+            evaluate(activity, "document.getElementById('stop').click()")
+            waitFor { evaluate(activity, "!document.getElementById('setup').hidden") == "true" }
             instrumentation.runOnMainSync { assertEquals(null, WorkoutService.current) }
         }
     }
@@ -88,6 +94,29 @@ class WorkoutServiceTest {
         ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).use { stream ->
             stream.readBytes()
         }
+    }
+
+    private fun waitFor(condition: () -> Boolean) {
+        val deadline = SystemClock.elapsedRealtime() + 6000
+        do {
+            if (condition()) return
+            Thread.sleep(100)
+        } while (SystemClock.elapsedRealtime() < deadline)
+        throw AssertionError("The expected workout screen did not appear")
+    }
+
+    private fun evaluate(activity: ActivityScenario<TimerActivity>, script: String): String? {
+        val result = CountDownLatch(1)
+        var value: String? = null
+        activity.onActivity { screen ->
+            val web = screen.window.decorView.descendants().filterIsInstance<WebView>().single()
+            web.evaluateJavascript(script) {
+                value = it
+                result.countDown()
+            }
+        }
+        assertTrue(result.await(5, TimeUnit.SECONDS))
+        return value
     }
 
     private fun View.descendants(): Sequence<View> = sequence {

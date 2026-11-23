@@ -1,0 +1,5 @@
+<resources>
+    <style name="IntervalPhoneTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F3F5F3</item>
+    </style>
+</resources>

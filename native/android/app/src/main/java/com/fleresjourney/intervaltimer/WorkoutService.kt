@@ -11,6 +11,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.media.MediaPlayer
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -19,6 +21,7 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
+import android.speech.tts.TextToSpeech
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.TextView
@@ -32,6 +35,20 @@ class WorkoutService : Service() {
     private lateinit var wakeLock: PowerManager.WakeLock
     private var wakeRenewedAt = 0L
     private var plan: WorkoutPlan? = null
+    internal val activePlan get() = plan
+    internal var workoutId = ""
+        private set
+    internal var activityMode = "general"
+        private set
+    private var cueVolume = 1f
+    private var finishCue = true
+    private var warning = "0"
+    private var pattern = "activity"
+    private var activeWord = ""
+    private var restWord = ""
+    private var tone: ToneGenerator? = null
+    private var speech: TextToSpeech? = null
+    private var speechReady = false
     private var workout: Workout? = null
     private var lastPhase: Phase? = null
     private var lastElapsed = -1L
@@ -57,11 +74,23 @@ class WorkoutService : Service() {
                 val next = runCatching {
                     WorkoutPlan(intent.getIntExtra("active", 30), intent.getIntExtra("rest", 10),
                         intent.getIntExtra("rounds", 10), intent.getBooleanExtra("voice", false),
-                        intent.getBooleanExtra("vibration", true))
+                        intent.getBooleanExtra("vibration", true), intent.getIntExtra("prep", 0))
                 }.getOrNull()
                 if (next == null) {
                     if (workout == null) stopSelf()
                     return START_NOT_STICKY
+                }
+                stopAudioAndVibration()
+                workoutId = SystemClock.elapsedRealtimeNanos().toString()
+                activityMode = intent.getStringExtra("mode") ?: "general"
+                cueVolume = intent.getIntExtra("volume", 100).coerceIn(0, 100) / 100f
+                finishCue = intent.getBooleanExtra("finish", true)
+                warning = intent.getStringExtra("warning") ?: "0"
+                pattern = intent.getStringExtra("pattern") ?: "activity"
+                activeWord = intent.getStringExtra("goWord").orEmpty().take(36)
+                restWord = intent.getStringExtra("restWord").orEmpty().take(36)
+                if (next.hasVoice && speech == null && (activeWord.isNotBlank() || restWord.isNotBlank())) {
+                    speech = TextToSpeech(this) { status -> speechReady = status == TextToSpeech.SUCCESS }
                 }
                 plan = next
                 workout = Workout(next, SystemClock::elapsedRealtime)
@@ -97,10 +126,24 @@ class WorkoutService : Service() {
         }
 
         if (!state.paused) {
-            if (entered && state.elapsed - state.phase.start <= 300L) transitionCue(state.phase.stage, currentPlan)
+            if (entered && state.elapsed - state.phase.start <= 300L && (state.phase.stage != Stage.COMPLETE || finishCue)) {
+                transitionCue(state, currentPlan)
+            }
             if (currentPlan.hasVoice) {
                 val previous = if (entered) state.phase.start - 1 else lastElapsed
                 countdownAt(state, previous)?.let { playRecording(listOf("one", "two", "three")[it - 1]) }
+            } else if (!entered && state.phase.stage != Stage.COMPLETE) {
+                val ahead = warning.toIntOrNull()?.coerceIn(0, 60) ?: 0
+                val threshold = state.phase.end - ahead * 1000L
+                if ((warning == "countdown" && countdownAt(state, lastElapsed) != null && state.phase.start < state.elapsed) ||
+                    (ahead > 0 && threshold > state.phase.start && lastElapsed < threshold && state.elapsed - threshold in 0..300L)) {
+                    if (cueVolume > 0f) {
+                        tone?.release()
+                        tone = ToneGenerator(AudioManager.STREAM_MUSIC, (cueVolume * 100).toInt())
+                        tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 180)
+                    }
+                    if (currentPlan.vibration) vibrate(95L)
+                }
             }
         }
 
@@ -124,20 +167,43 @@ class WorkoutService : Service() {
         handler.postDelayed(deadlineTick, nextSecond.coerceAtLeast(10L))
     }
 
-    private fun transitionCue(stage: Stage, currentPlan: WorkoutPlan) {
+    private fun transitionCue(state: TimerSnapshot, currentPlan: WorkoutPlan) {
+        val stage = state.phase.stage
         if (currentPlan.hasVoice) {
             if (stage == Stage.COMPLETE) playRecording("complete")
+            val word = if (stage == Stage.ACTIVE) activeWord else if (stage == Stage.REST) restWord else ""
+            if (word.isNotBlank() && cueVolume > 0f && state.phase.end - state.phase.start > 3000L) {
+                if (speechReady) speech?.speak(word, TextToSpeech.QUEUE_FLUSH, android.os.Bundle().apply {
+                    putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, cueVolume)
+                }, "phase") else playRecording(if (stage == Stage.ACTIVE) "go" else "rest")
+            }
         } else {
-            playRecording("cue-" + stage.name.lowercase(Locale.ROOT))
+            playRecording(if (stage == Stage.READY) "cue-active" else "cue-" + stage.name.lowercase(Locale.ROOT))
         }
         if (currentPlan.vibration) {
-            val effect = if (stage == Stage.ACTIVE) VibrationEffect.createWaveform(longArrayOf(0, 130, 75, 130, 75, 130), -1)
-                else VibrationEffect.createOneShot(900L, VibrationEffect.DEFAULT_AMPLITUDE)
-            getSystemService(Vibrator::class.java)?.vibrate(effect)
+            when (pattern) {
+                "short" -> vibrate(95L)
+                "double" -> vibrate(100L, 75L, 100L)
+                "long" -> vibrate(850L)
+                else -> when (stage) {
+                    Stage.ACTIVE -> vibrate(130L, 75L, 130L, 75L, 130L)
+                    Stage.READY -> vibrate(95L)
+                    Stage.REST -> vibrate(850L)
+                    Stage.COMPLETE -> vibrate(950L)
+                }
+            }
         }
     }
 
+    private fun vibrate(vararg timings: Long) {
+        val effect = if (timings.size == 1) VibrationEffect.createOneShot(timings[0], VibrationEffect.DEFAULT_AMPLITUDE)
+            else VibrationEffect.createWaveform(longArrayOf(0, *timings), -1)
+        getSystemService(Vibrator::class.java)?.vibrate(effect)
+    }
+
     private fun playRecording(name: String) {
+        if (cueVolume == 0f) return
+        speech?.stop()
         player?.release()
         player = null
         val next = MediaPlayer()
@@ -150,12 +216,16 @@ class WorkoutService : Service() {
                 }
             }
             next.prepare()
+            next.setVolume(cueVolume, cueVolume)
             next.start()
         }.isSuccess
         if (prepared) player = next else next.release()
     }
 
     private fun stopAudioAndVibration() {
+        speech?.stop()
+        tone?.release()
+        tone = null
         player?.release()
         player = null
         getSystemService(Vibrator::class.java)?.cancel()
@@ -228,6 +298,7 @@ class WorkoutService : Service() {
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         stopAudioAndVibration()
+        speech?.shutdown()
         if (wakeLock.isHeld) wakeLock.release()
         removeOverlay()
         current = null
