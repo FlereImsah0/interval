@@ -12,11 +12,15 @@ struct WorkoutPresentation: Equatable {
     let end: Date?
     let remaining: String
     let paused: Bool
+    let workoutEnd: Date?
+    let workoutStart: Date
+    let workoutDigits: String
 }
 
 @MainActor
 final class WorkoutModel: ObservableObject {
     @Published private(set) var snapshot: WorkoutSnapshot?
+    @Published private(set) var scheduleRevision = 0
     @Published private(set) var presentation: WorkoutPresentation?
     private let clock = ContinuousClock()
     private var workout: Workout?
@@ -24,6 +28,12 @@ final class WorkoutModel: ObservableObject {
     private var lastPhase: WorkoutPhase?
     private var lastElapsed: Int64 = -1
     private var player: AVAudioPlayer?
+
+    var plan: WorkoutPlan? { workout?.plan }
+
+    func currentSnapshot() -> WorkoutSnapshot? { workout?.snapshot() }
+
+    func refreshNow() { refresh() }
 
     func start(_ plan: WorkoutPlan) {
         stop()
@@ -33,6 +43,7 @@ final class WorkoutModel: ObservableObject {
             return parts.seconds * 1000 + parts.attoseconds / 1_000_000_000_000_000
         }
         refresh()
+        scheduleRevision += 1
         run()
     }
 
@@ -48,6 +59,7 @@ final class WorkoutModel: ObservableObject {
             player?.stop()
             refresh()
         }
+        scheduleRevision += 1
     }
 
     func stop() {
@@ -59,6 +71,7 @@ final class WorkoutModel: ObservableObject {
         presentation = nil
         lastPhase = nil
         lastElapsed = -1
+        scheduleRevision += 1
     }
 
     private func run() {
@@ -81,10 +94,20 @@ final class WorkoutModel: ObservableObject {
         if entered || state.paused != snapshot?.paused {
             let timerEnd = state.paused || state.phase.stage == .complete ? nil
                 : Date.now.addingTimeInterval(Double(state.remaining) / 1000)
+            let now = Date.now
+            let totalRemaining = workout.plan.totalMilliseconds.map { max(0, $0 - state.elapsed) }
+            let workoutEnd = totalRemaining.map { now.addingTimeInterval(Double($0) / 1000) }
             presentation = WorkoutPresentation(stage: state.phase.stage, round: state.phase.round,
-                end: timerEnd, remaining: formatRemaining(state.remaining), paused: state.paused)
+                end: timerEnd, remaining: formatRemaining(state.remaining), paused: state.paused,
+                workoutEnd: workoutEnd, workoutStart: now.addingTimeInterval(-Double(state.elapsed) / 1000),
+                workoutDigits: formatRemaining(totalRemaining ?? state.elapsed))
         }
-        if !state.paused {
+        #if os(iOS)
+        let playsHere = UIApplication.shared.applicationState == .active
+        #else
+        let playsHere = true
+        #endif
+        if !state.paused && playsHere {
             if entered && state.elapsed - state.phase.start <= 300 {
                 if workout.plan.voice {
                     if state.phase.stage == .complete { play("complete", folder: "voice") }

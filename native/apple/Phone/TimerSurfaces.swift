@@ -6,6 +6,17 @@ struct TimerSurfaceState: Codable, Hashable {
     let round: Int64
     let end: Date?
     let remaining: String
+    let workoutEnd: Date?
+    let workoutStart: Date
+    let workoutDigits: String
+    let paused: Bool
+    let complete: Bool
+
+    var workoutLabel: String {
+        if complete { return "Workout complete" }
+        if paused { return "Paused" }
+        return workoutEnd == nil ? "Elapsed workout" : "Workout time left"
+    }
 }
 
 struct IntervalActivityAttributes: ActivityAttributes {

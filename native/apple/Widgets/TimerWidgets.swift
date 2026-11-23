@@ -81,34 +81,57 @@ private struct TimerDigits: View {
     }
 }
 
+private struct WorkoutDigits: View {
+    let state: TimerSurfaceState
+
+    var body: some View {
+        Group {
+            if state.paused || state.complete {
+                Text(state.workoutDigits)
+            } else if let end = state.workoutEnd {
+                if end > Date.now {
+                    Text(timerInterval: Date.now...end, countsDown: true)
+                } else {
+                    Text("00:00")
+                }
+            } else {
+                Text(state.workoutStart, style: .timer)
+            }
+        }
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+    }
+}
+
 private struct IntervalLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: IntervalActivityAttributes.self) { context in
             HStack {
                 VStack(alignment: .leading) {
-                    Text(context.state.name).font(.headline)
-                    Text("Round \(context.state.round)").font(.caption)
+                    Text(context.state.workoutLabel).font(.headline)
+                    Text("Interval Timer").font(.caption)
                 }
                 Spacer()
-                TimerDigits(state: context.state).font(.title2.weight(.bold))
+                WorkoutDigits(state: context.state).font(.title2.weight(.bold))
             }
             .padding(16)
             .widgetURL(TimerSurfaceStore.openURL)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text(context.state.name)
+                    Text(context.state.workoutLabel)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    TimerDigits(state: context.state)
+                    WorkoutDigits(state: context.state)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("Round \(context.state.round)").font(.caption)
+                    Text("Interval Timer").font(.caption)
                 }
             } compactLeading: {
                 Image(systemName: "timer")
             } compactTrailing: {
-                TimerDigits(state: context.state)
+                WorkoutDigits(state: context.state)
             } minimal: {
                 Image(systemName: "timer")
             }

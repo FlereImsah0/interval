@@ -3,6 +3,9 @@ import SwiftUI
 @MainActor
 struct TimerScreen: View {
     @ObservedObject var model: WorkoutModel
+    let notice: String?
+    let startWorkout: (WorkoutPlan) async -> Void
+    @State private var starting = false
     @AppStorage("activeSeconds") private var active = 30
     @AppStorage("restSeconds") private var rest = 10
     @AppStorage("rounds") private var rounds = 10
@@ -43,9 +46,19 @@ struct TimerScreen: View {
                         let plan = WorkoutPlan(activeSeconds: active, restSeconds: rest, rounds: rounds,
                                                voice: voice, vibration: vibration)
                         invalid = plan == nil
-                        if let plan { model.start(plan) }
+                        if let plan {
+                            starting = true
+                            Task {
+                                await startWorkout(plan)
+                                starting = false
+                            }
+                        }
                     }
+                    .disabled(starting)
                 }
+            }
+            if let notice {
+                Section { Text(notice).font(.footnote).foregroundStyle(.secondary) }
             }
         }
     }

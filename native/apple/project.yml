@@ -16,10 +16,8 @@ targets:
       - Shared
       - Phone
       - path: ../../web/voice
-        type: folder
         buildPhase: resources
       - path: ../audio
-        type: folder
         buildPhase: resources
     dependencies:
       - target: IntervalTimerWidgets
@@ -82,3 +80,11 @@ targets:
         CFBundleDisplayName: Interval Timer
         WKApplication: true
         WKWatchOnly: true
+        WKBackgroundModes: [workout-processing]
+        UIBackgroundModes: [audio]
+        NSHealthShareUsageDescription: Interval Timer uses workout permission to keep the timer running on Apple Watch while you exercise.
+        NSHealthUpdateUsageDescription: Interval Timer starts an exercise session for timer cues. The workout is discarded when you finish.
+    entitlements:
+      path: Config/Watch.entitlements
+      properties:
+        com.apple.developer.healthkit: true

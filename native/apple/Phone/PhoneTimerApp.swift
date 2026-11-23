@@ -7,15 +7,28 @@ import WidgetKit
 struct PhoneTimerApp: App {
     @StateObject private var model = WorkoutModel()
     @StateObject private var surfaces = AppleTimerSurfaces()
+    @StateObject private var notifications = PhoneWorkoutNotifications()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
-                TimerScreen(model: model)
-                    .navigationTitle("Interval Timer")
+            AppleRootView(model: model, notice: notifications.notice) { plan in
+                await notifications.prepare()
+                model.start(plan)
             }
             .onChange(of: model.presentation, initial: true) { _, state in
                 surfaces.update(state)
+            }
+            .onChange(of: model.scheduleRevision) {
+                notifications.update(plan: model.plan, snapshot: model.currentSnapshot())
+            }
+            .onChange(of: scenePhase) {
+                guard scenePhase == .active else { return }
+                model.refreshNow()
+                surfaces.update(model.presentation)
+                if let snapshot = model.currentSnapshot() {
+                    notifications.update(plan: model.plan, snapshot: snapshot)
+                }
             }
         }
     }
@@ -37,7 +50,9 @@ private final class AppleTimerSurfaces: ObservableObject {
     private func updateSurfaces(_ presentation: WorkoutPresentation?) async {
         let state = presentation.map {
             let name = $0.paused ? "Paused · " + $0.stage.label : $0.stage.label
-            return TimerSurfaceState(name: name, round: $0.round, end: $0.end, remaining: $0.remaining)
+            return TimerSurfaceState(name: name, round: $0.round, end: $0.end, remaining: $0.remaining,
+                workoutEnd: $0.workoutEnd, workoutStart: $0.workoutStart, workoutDigits: $0.workoutDigits,
+                paused: $0.paused, complete: $0.stage == .complete)
         }
         TimerSurfaceStore.write(state)
         WidgetCenter.shared.reloadTimelines(ofKind: TimerSurfaceStore.widgetKind)
@@ -49,7 +64,7 @@ private final class AppleTimerSurfaces: ObservableObject {
             activity = nil
             return
         }
-        let content = ActivityContent(state: state, staleDate: state.end)
+        let content = ActivityContent(state: state, staleDate: state.workoutEnd)
         if presentation?.stage == .complete {
             await activity?.end(content, dismissalPolicy: .after(Date.now.addingTimeInterval(15)))
             activity = nil
