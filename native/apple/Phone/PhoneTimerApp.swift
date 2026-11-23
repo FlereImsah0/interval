@@ -49,9 +49,7 @@ private final class AppleTimerSurfaces: ObservableObject {
 
     private func updateSurfaces(_ presentation: WorkoutPresentation?) async {
         let state = presentation.map {
-            let name = $0.paused ? "Paused · " + $0.stage.label : $0.stage.label
-            return TimerSurfaceState(name: name, round: $0.round, end: $0.end, remaining: $0.remaining,
-                workoutEnd: $0.workoutEnd, workoutStart: $0.workoutStart, workoutDigits: $0.workoutDigits,
+            TimerSurfaceState(workoutEnd: $0.workoutEnd, workoutStart: $0.workoutStart, workoutDigits: $0.workoutDigits,
                 paused: $0.paused, complete: $0.stage == .complete)
         }
         TimerSurfaceStore.write(state)
@@ -65,7 +63,7 @@ private final class AppleTimerSurfaces: ObservableObject {
             return
         }
         let content = ActivityContent(state: state, staleDate: state.workoutEnd)
-        if presentation?.stage == .complete {
+        if state.complete {
             await activity?.end(content, dismissalPolicy: .after(Date.now.addingTimeInterval(15)))
             activity = nil
         } else if let activity {

@@ -8,9 +8,6 @@ import UIKit
 
 struct WorkoutPresentation: Equatable {
     let stage: WorkoutStage
-    let round: Int64
-    let end: Date?
-    let remaining: String
     let paused: Bool
     let workoutEnd: Date?
     let workoutStart: Date
@@ -91,14 +88,11 @@ final class WorkoutModel: ObservableObject {
         guard let workout else { return }
         let state = workout.snapshot()
         let entered = state.phase != lastPhase
-        if entered || state.paused != snapshot?.paused {
-            let timerEnd = state.paused || state.phase.stage == .complete ? nil
-                : Date.now.addingTimeInterval(Double(state.remaining) / 1000)
+        if state.phase.stage != snapshot?.phase.stage || state.paused != snapshot?.paused {
             let now = Date.now
             let totalRemaining = workout.plan.totalMilliseconds.map { max(0, $0 - state.elapsed) }
             let workoutEnd = totalRemaining.map { now.addingTimeInterval(Double($0) / 1000) }
-            presentation = WorkoutPresentation(stage: state.phase.stage, round: state.phase.round,
-                end: timerEnd, remaining: formatRemaining(state.remaining), paused: state.paused,
+            presentation = WorkoutPresentation(stage: state.phase.stage, paused: state.paused,
                 workoutEnd: workoutEnd, workoutStart: now.addingTimeInterval(-Double(state.elapsed) / 1000),
                 workoutDigits: formatRemaining(totalRemaining ?? state.elapsed))
         }

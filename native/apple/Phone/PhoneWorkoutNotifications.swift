@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 import UserNotifications
 
 private let workoutNotificationPrefix = "interval-workout-"
@@ -32,26 +33,38 @@ final class PhoneWorkoutNotifications: NSObject, ObservableObject, UNUserNotific
         operation = Task { [weak self] in
             await prior?.value
             guard let self, current == self.generation else { return }
+            let application = UIApplication.shared
+            var backgroundTask = UIBackgroundTaskIdentifier.invalid
+            func endBackgroundTask() {
+                guard backgroundTask != .invalid else { return }
+                application.endBackgroundTask(backgroundTask)
+                backgroundTask = .invalid
+            }
+            backgroundTask = application.beginBackgroundTask(withName: "Schedule workout cues") {
+                if self.generation == current { self.operation?.cancel() }
+                endBackgroundTask()
+            }
+            defer { endBackgroundTask() }
             await self.replace(plan: plan, snapshot: snapshot, capturedAt: capturedAt, generation: current)
         }
     }
 
     private func replace(plan: WorkoutPlan?, snapshot: WorkoutSnapshot?, capturedAt: ContinuousClock.Instant, generation current: Int) async {
         let pending = await center.pendingNotificationRequests()
-        guard current == generation else { return }
+        guard current == generation, !Task.isCancelled else { return }
         let owned = pending.map(\.identifier).filter { $0.hasPrefix(workoutNotificationPrefix) }
         center.removePendingNotificationRequests(withIdentifiers: owned)
         guard let plan, let snapshot, !snapshot.paused, snapshot.phase.stage != .complete else {
             notice = nil
             let delivered = await center.deliveredNotifications()
-            guard current == generation else { return }
+            guard current == generation, !Task.isCancelled else { return }
             center.removeDeliveredNotifications(withIdentifiers: delivered.map { $0.request.identifier }
                 .filter { $0.hasPrefix(workoutNotificationPrefix) })
             return
         }
 
         let settings = await center.notificationSettings()
-        guard current == generation else { return }
+        guard current == generation, !Task.isCancelled else { return }
         guard settings.authorizationStatus == .authorized && settings.soundSetting == .enabled else {
             notice = "Allow notifications and sounds in iPhone Settings for cues while the screen is locked."
             return
@@ -61,7 +74,7 @@ final class PhoneWorkoutNotifications: NSObject, ObservableObject, UNUserNotific
         let scheduled = plan.backgroundCues(after: snapshot.elapsed, capacity: capacity)
         notice = scheduled.partial ? "For a long workout, reopen the timer before the queued background cues run out." : nil
         for cue in scheduled.cues {
-            guard current == generation else { return }
+            guard current == generation, !Task.isCancelled else { return }
             let remaining = Double(cue.elapsed - snapshot.elapsed) / 1000
             let offset = capturedAt.duration(to: clock.now).components
             let delay = remaining - Double(offset.seconds) - Double(offset.attoseconds) / 1e18

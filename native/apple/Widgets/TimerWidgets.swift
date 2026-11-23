@@ -25,7 +25,7 @@ private struct TimerTimeline: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<TimerEntry>) -> Void) {
         let current = entry()
         var entries = [current]
-        if let end = current.state?.end, end > current.date {
+        if let state = current.state, !state.paused, let end = state.workoutEnd, end > current.date {
             entries.append(TimerEntry(date: end, state: nil))
         }
         completion(Timeline(entries: entries, policy: .never))
@@ -34,7 +34,9 @@ private struct TimerTimeline: TimelineProvider {
     private func entry() -> TimerEntry {
         let now = Date.now
         let state = TimerSurfaceStore.read()
-        if let end = state?.end, end <= now { return TimerEntry(date: now, state: nil) }
+        if let state, !state.paused, !state.complete, let end = state.workoutEnd, end <= now {
+            return TimerEntry(date: now, state: nil)
+        }
         return TimerEntry(date: now, state: state)
     }
 }
@@ -45,8 +47,8 @@ private struct TimerHomeWidget: Widget {
             VStack(alignment: .leading, spacing: 5) {
                 Text("Interval Timer").font(.caption).fontWeight(.semibold)
                 if let state = entry.state {
-                    Text(state.name).font(.caption)
-                    TimerDigits(state: state)
+                    Text(state.workoutLabel).font(.caption)
+                    WorkoutDigits(state: state)
                 } else {
                     Label("Open timer", systemImage: "timer")
                         .font(.headline)
@@ -56,28 +58,8 @@ private struct TimerHomeWidget: Widget {
             .widgetURL(TimerSurfaceStore.openURL)
         }
         .configurationDisplayName("Interval Timer")
-        .description("See the current interval or open the timer.")
+        .description("See the workout time or open the timer.")
         .supportedFamilies([.systemSmall, .accessoryRectangular])
-    }
-}
-
-private struct TimerDigits: View {
-    let state: TimerSurfaceState
-    var body: some View {
-        Group {
-            if let end = state.end {
-                if end > .now {
-                    Text(timerInterval: Date.now...end, countsDown: true)
-                } else {
-                    Text("00:00")
-                }
-            } else {
-                Text(state.remaining)
-            }
-        }
-        .monospacedDigit()
-        .lineLimit(1)
-        .minimumScaleFactor(0.6)
     }
 }
 
@@ -89,8 +71,9 @@ private struct WorkoutDigits: View {
             if state.paused || state.complete {
                 Text(state.workoutDigits)
             } else if let end = state.workoutEnd {
-                if end > Date.now {
-                    Text(timerInterval: Date.now...end, countsDown: true)
+                let now = Date.now
+                if end > now {
+                    Text(timerInterval: now...end, countsDown: true)
                 } else {
                     Text("00:00")
                 }

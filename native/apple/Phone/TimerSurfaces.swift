@@ -2,10 +2,6 @@ import ActivityKit
 import Foundation
 
 struct TimerSurfaceState: Codable, Hashable {
-    let name: String
-    let round: Int64
-    let end: Date?
-    let remaining: String
     let workoutEnd: Date?
     let workoutStart: Date
     let workoutDigits: String
