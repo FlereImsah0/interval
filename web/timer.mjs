@@ -1,3 +1,18 @@
+export const maxRoundSeconds = 24 * 60 * 60;
+
+export function secondsFromDuration(hours, minutes, seconds) {
+  return (Number(hours) || 0) * 3600 + (Number(minutes) || 0) * 60 + (Number(seconds) || 0);
+}
+
+export function durationParts(seconds) {
+  return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60];
+}
+
+export function limitIntervalSeconds(seconds, otherSeconds) {
+  const budget = maxRoundSeconds - Math.max(0, otherSeconds);
+  return Math.max(0, Math.min(seconds, budget));
+}
+
 export function phaseAt(plan, elapsed) {
   const { active, rest, rounds, prep } = plan;
   if (elapsed < prep) {

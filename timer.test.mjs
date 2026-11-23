@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { phaseAt, Workout, warningAt } from './web/timer.mjs';
+import { durationParts, limitIntervalSeconds, maxRoundSeconds, phaseAt, secondsFromDuration, Workout, warningAt } from './web/timer.mjs';
 
 const plan = { active: 1000, rest: 1000, rounds: 10000, prep: 3000 };
 
@@ -43,4 +43,17 @@ test('advance cues skip stale and already fired warnings', () => {
   assert.equal(warningAt(phase, 'countdown', 8005), null);
   assert.equal(warningAt({ ...phase, elapsed: 8500 }, 'countdown', 7600), null);
   assert.deepEqual(warningAt({ ...phase, elapsed: 5100 }, 5, 4800), { seconds: 5, spoken: null });
+});
+
+test('duration entry carries minutes and seconds into the next unit', () => {
+  assert.deepEqual(durationParts(secondsFromDuration(0, 0, 94)), [0, 1, 34]);
+  assert.deepEqual(durationParts(secondsFromDuration(0, 94, 0)), [1, 34, 0]);
+  assert.deepEqual(durationParts(secondsFromDuration(1, 59, 60)), [2, 0, 0]);
+});
+
+test('a round never exceeds 24 hours including recovery', () => {
+  assert.deepEqual(durationParts(limitIntervalSeconds(secondsFromDuration(24, 94, 0), 0)), [24, 0, 0]);
+  assert.equal(limitIntervalSeconds(maxRoundSeconds + 1, 1), maxRoundSeconds - 1);
+  assert.equal(limitIntervalSeconds(maxRoundSeconds, 300) + 300, maxRoundSeconds);
+  assert.equal(limitIntervalSeconds(-1, 0), 0);
 });

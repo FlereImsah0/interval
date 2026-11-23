@@ -33,9 +33,11 @@
           <div class="interval-control">
             <button type="button" class="step" data-adjust="active" data-delta="-1" aria-label="Decrease active time by one second">−</button>
             <div class="duration">
-              <label><span class="sr-only">Active minutes</span><input name="activeMinutes" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="00"></label>
-              <span aria-hidden="true">:</span>
-              <label><span class="sr-only">Active seconds</span><input name="activeSeconds" type="text" pattern="[0-5]?[0-9]" inputmode="numeric" maxlength="2" required value="30"></label>
+              <label><span class="sr-only">Active hours</span><input name="activeHours" data-interval="active" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="00"><span class="duration-unit" aria-hidden="true">h</span></label>
+              <span class="duration-separator" aria-hidden="true">:</span>
+              <label><span class="sr-only">Active minutes</span><input name="activeMinutes" data-interval="active" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="00"><span class="duration-unit" aria-hidden="true">min</span></label>
+              <span class="duration-separator" aria-hidden="true">:</span>
+              <label><span class="sr-only">Active seconds</span><input name="activeSeconds" data-interval="active" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="30"><span class="duration-unit" aria-hidden="true">sec</span></label>
             </div>
             <button type="button" class="step" data-adjust="active" data-delta="1" aria-label="Increase active time by one second">+</button>
           </div>
@@ -46,14 +48,17 @@
           <div class="interval-control">
             <button type="button" class="step" data-adjust="rest" data-delta="-1" aria-label="Decrease rest time by one second">−</button>
             <div class="duration">
-              <label><span class="sr-only">Rest minutes</span><input name="restMinutes" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="00"></label>
-              <span aria-hidden="true">:</span>
-              <label><span class="sr-only">Rest seconds</span><input name="restSeconds" type="text" pattern="[0-5]?[0-9]" inputmode="numeric" maxlength="2" required value="10"></label>
+              <label><span class="sr-only">Rest hours</span><input name="restHours" data-interval="rest" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="00"><span class="duration-unit" aria-hidden="true">h</span></label>
+              <span class="duration-separator" aria-hidden="true">:</span>
+              <label><span class="sr-only">Rest minutes</span><input name="restMinutes" data-interval="rest" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="00"><span class="duration-unit" aria-hidden="true">min</span></label>
+              <span class="duration-separator" aria-hidden="true">:</span>
+              <label><span class="sr-only">Rest seconds</span><input name="restSeconds" data-interval="rest" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="10"><span class="duration-unit" aria-hidden="true">sec</span></label>
             </div>
             <button type="button" class="step" data-adjust="rest" data-delta="1" aria-label="Increase rest time by one second">+</button>
           </div>
         </fieldset>
       </div>
+      <p class="notice" role="status" id="round-limit"></p>
       <div class="options">
         <div class="option-row rounds">
           <label for="rounds">Rounds</label>
@@ -78,9 +83,14 @@
       <button type="submit" class="primary start" data-touch="confirmation"><span class="play" aria-hidden="true"></span><span id="start-label">Start workout</span></button>
       <button type="button" id="end-paused" class="quiet" hidden>End paused workout</button>
       <div class="favorites" aria-label="Favorites">
-        <select id="favorite" aria-label="Favorite workout" hidden><option value="">Favorites</option></select>
-        <button id="save-favorite" type="button" class="quiet" data-touch="confirmation"><span aria-hidden="true">☆</span> Save workout</button>
-        <button id="delete-favorite" type="button" class="quiet" hidden>Remove</button>
+        <details id="favorite-picker" class="favorite-picker" hidden>
+          <summary id="favorite-toggle"><span class="favorite-heading"><span aria-hidden="true">☆</span> Favorites <span id="favorite-count" class="favorite-count"></span></span><span class="favorite-chevron" aria-hidden="true"></span></summary>
+          <ul id="favorite-list" class="favorite-list"></ul>
+        </details>
+        <div class="favorite-actions">
+          <button id="save-favorite" type="button" class="quiet" data-touch="confirmation">Save workout</button>
+          <button id="delete-favorite" type="button" class="quiet" hidden>Remove selected</button>
+        </div>
       </div>
       <p class="notice" role="status" id="favorite-status"></p>
     </form>

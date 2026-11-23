@@ -1,4 +1,4 @@
-import { Workout, warningAt } from './timer.mjs';
+import { Workout, durationParts, limitIntervalSeconds, maxRoundSeconds, secondsFromDuration, warningAt } from './timer.mjs';
 
 const byId = (id) => document.getElementById(id);
 const setup = byId('setup');
@@ -7,7 +7,9 @@ const settings = byId('settings');
 const workout = byId('workout');
 const pause = byId('pause');
 const stop = byId('stop');
-const favoritesControl = byId('favorite');
+const favoritePicker = byId('favorite-picker');
+const favoriteList = byId('favorite-list');
+const favoriteToggle = byId('favorite-toggle');
 const settingsButton = byId('settings-button');
 const backButton = byId('back-button');
 const endPaused = byId('end-paused');
@@ -16,8 +18,9 @@ const headings = { setup: byId('setup-title'), settings: byId('settings-title'),
 const themeQuery = matchMedia('(prefers-color-scheme: dark)');
 const touchPatterns = { action: 8, navigation: 14, confirmation: [9, 24, 12] };
 const tones = new Set();
-const maxIntervalSeconds = 99 * 60 + 59;
-const durationNames = ['activeMinutes', 'activeSeconds', 'restMinutes', 'restSeconds'];
+const intervalKinds = ['active', 'rest'];
+const durationUnits = ['Hours', 'Minutes', 'Seconds'];
+const durationNames = intervalKinds.flatMap((kind) => durationUnits.map((unit) => kind + unit));
 const workoutNames = [...durationNames, 'rounds', 'unlimited', 'mode'];
 const storageKey = 'interval-timer-v1';
 const cues = {
@@ -39,6 +42,7 @@ const words = {
   hiit: ['Go', 'Next round after rest'],
 };
 let favorites = [];
+let selectedFavorite = null;
 let session = null;
 let tick = null;
 let lastPhase = null;
@@ -84,22 +88,40 @@ function save() {
   }
 }
 
-function limitSavedDurations(config) {
-  let changed = false;
-  for (const interval of ['active', 'rest']) {
-    if (Number(config?.[interval + 'Minutes']) > 99) {
-      config[interval + 'Minutes'] = '99';
-      config[interval + 'Seconds'] = '59';
-      changed = true;
-    }
+function intervalSeconds(kind, config) {
+  return secondsFromDuration(...durationUnits.map((unit) => {
+    const name = kind + unit;
+    return config ? config[name] : field(name).value;
+  }));
+}
+
+function durationEntries(kind, seconds) {
+  const parts = durationParts(seconds);
+  return Object.fromEntries(durationUnits.map((unit, index) => [
+    kind + unit, String(parts[index]).padStart(2, '0'),
+  ]));
+}
+
+function normalizeSavedDurations(config) {
+  if (!config) return;
+  const active = limitIntervalSeconds(intervalSeconds('active', config), 0);
+  const rest = limitIntervalSeconds(intervalSeconds('rest', config), Math.max(1, active));
+  Object.assign(config, durationEntries('active', active), durationEntries('rest', rest));
+}
+
+function setIntervalDuration(kind, seconds) {
+  const other = kind === 'active' ? intervalSeconds('rest') : Math.max(1, intervalSeconds('active'));
+  const bounded = limitIntervalSeconds(seconds, other);
+  apply(setup, durationEntries(kind, bounded));
+  if (seconds > bounded) {
+    byId('round-limit').textContent = 'A round can last up to 24 hours, including rest.';
   }
-  return changed;
 }
 
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
-    limitSavedDurations(saved?.setup);
+    normalizeSavedDurations(saved?.setup);
     apply(setup, saved?.setup);
     const storedPreferences = saved?.preferences;
     if (saved?.cueDefaults !== 2 && storedPreferences?.volume === '65' &&
@@ -111,7 +133,8 @@ function load() {
     if (Array.isArray(saved?.favorites)) {
       favorites = saved.favorites;
       for (const favorite of favorites) {
-        if (limitSavedDurations(favorite.config)) favorite.label = favoriteLabel(favorite.config);
+        normalizeSavedDurations(favorite.config);
+        favorite.label = favoriteLabel(favorite.config);
       }
     }
   } catch {
@@ -143,8 +166,8 @@ function updateSettings() {
 
 function planFromSetup() {
   return {
-    active: (Number(field('activeMinutes').value) * 60 + Number(field('activeSeconds').value)) * 1000,
-    rest: (Number(field('restMinutes').value) * 60 + Number(field('restSeconds').value)) * 1000,
+    active: intervalSeconds('active') * 1000,
+    rest: intervalSeconds('rest') * 1000,
     rounds: field('unlimited').checked ? Infinity : Number(field('rounds').value),
     prep: Number(pref('prep').value) * 1000,
   };
@@ -159,7 +182,7 @@ function updateSummary() {
   }
   const seconds = (prep + active * rounds + rest * (rounds - 1)) / 1000;
   if (![...durationNames, 'rounds'].every((name) => field(name).validity.valid) ||
-      !Number.isFinite(seconds) || active < 1000 || rounds < 1) {
+      !Number.isFinite(seconds) || active < 1000 || active + rest > maxRoundSeconds * 1000 || rounds < 1) {
     summary.textContent = 'Total time unavailable';
     return;
   }
@@ -173,15 +196,9 @@ function updateSummary() {
   summary.textContent = parts.join(' ') + ' total';
 }
 
-function padDurationFields() {
-  for (const name of durationNames) {
-    const input = field(name);
-    if (input.value && input.validity.valid) input.value = input.value.padStart(2, '0');
-  }
-}
-
-function formatTime(seconds) {
-  return String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
+function formatTime(seconds, showHours = seconds >= 3600) {
+  const parts = durationParts(seconds);
+  return (showHours ? parts : parts.slice(1)).map((part) => String(part).padStart(2, '0')).join(':');
 }
 
 function clearError(form, error) {
@@ -213,10 +230,13 @@ function checkSetup() {
   const error = byId('setup-error');
   const invalidTime = durationNames.find((name) => !field(name).validity.valid);
   if (invalidTime) {
-    const message = invalidTime.endsWith('Seconds') ? 'Enter seconds from 0 to 59.' : 'Enter minutes from 0 to 99.';
-    return showError(setup, error, field(invalidTime), message);
+    return showError(setup, error, field(invalidTime), 'Enter up to two digits in each time field.');
   }
-  if (planFromSetup().active < 1000) {
+  const { active, rest } = planFromSetup();
+  if (active + rest > maxRoundSeconds * 1000) {
+    return showError(setup, error, field('activeHours'), 'Active time and rest can total up to 24 hours per round.');
+  }
+  if (active < 1000) {
     return showError(setup, error, field('activeSeconds'), 'Set an active interval of at least one second.');
   }
   if (!field('rounds').validity.valid) {
@@ -228,62 +248,101 @@ function checkSetup() {
 
 function favoriteLabel(config) {
   const label = [...field('mode').options].find((option) => option.value === config.mode)?.text ?? 'General';
-  const active = Number(config.activeMinutes) * 60 + Number(config.activeSeconds);
-  const rest = Number(config.restMinutes) * 60 + Number(config.restSeconds);
-  const rounds = config.unlimited ? 'Unlimited' : config.rounds + ' rounds';
+  const active = intervalSeconds('active', config);
+  const rest = intervalSeconds('rest', config);
+  const rounds = config.unlimited ? 'Unlimited' : config.rounds + (Number(config.rounds) === 1 ? ' round' : ' rounds');
   return label + ' · ' + formatTime(active) + ' / ' + formatTime(rest) + ' · ' + rounds;
 }
 
-function updateFavorites(index = '') {
-  favoritesControl.replaceChildren(new Option('Favorites', ''));
-  favorites.forEach(({ label }, i) => favoritesControl.add(new Option(label, String(i))));
-  favoritesControl.value = String(index);
-  favoritesControl.hidden = favorites.length === 0;
-  byId('delete-favorite').hidden = favoritesControl.value === '';
+function updateFavorites(index = null) {
+  selectedFavorite = index;
+  favoritePicker.hidden = favorites.length === 0;
+  if (favoritePicker.hidden) favoritePicker.open = false;
+  byId('favorite-count').textContent = favorites.length;
+  byId('delete-favorite').hidden = index === null;
+  favoriteList.replaceChildren(...favorites.map(({ label }, position) => {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    const title = document.createElement('strong');
+    const details = document.createElement('span');
+    const [activity, ...summary] = label.split(' · ');
+    button.type = 'button';
+    button.className = 'favorite-item';
+    button.dataset.favorite = position;
+    button.setAttribute('aria-pressed', String(position === index));
+    title.textContent = activity;
+    details.textContent = summary.join(' · ');
+    button.append(title, details);
+    item.append(button);
+    return item;
+  }));
 }
 
 byId('save-favorite').addEventListener('click', () => {
   if (!checkSetup()) return;
-  padDurationFields();
   const config = values(setup, workoutNames);
   const label = favoriteLabel(config);
-  let index = favorites.findIndex((item) => JSON.stringify(item.config) === JSON.stringify(config));
+  let index = favorites.findIndex((item) => workoutNames.every((name) => item.config[name] === config[name]));
   if (index === -1) index = favorites.push({ label, config }) - 1;
   updateFavorites(index);
   byId('favorite-status').textContent = save() ? 'Workout saved.' : 'Workout saved for this visit only.';
 });
 
-favoritesControl.addEventListener('change', () => {
-  const index = favoritesControl.value;
-  if (index !== '') apply(setup, favorites[Number(index)].config);
+favoriteList.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-favorite]');
+  if (!button) return;
+  const index = Number(button.dataset.favorite);
+  apply(setup, favorites[index].config);
+  byId('round-limit').textContent = '';
   updateFavorites(index);
   clearError(setup, byId('setup-error'));
-  padDurationFields();
   updateSettings();
   save();
+  favoritePicker.open = false;
+  favoriteToggle.focus();
+  byId('favorite-status').textContent = 'Saved workout loaded.';
 });
 
 byId('delete-favorite').addEventListener('click', () => {
-  favorites.splice(Number(favoritesControl.value), 1);
+  if (selectedFavorite === null) return;
+  favorites.splice(selectedFavorite, 1);
   updateFavorites();
   save();
-  (favoritesControl.hidden ? byId('save-favorite') : favoritesControl).focus();
+  (favoritePicker.hidden ? byId('save-favorite') : favoriteToggle).focus();
   byId('favorite-status').textContent = 'Saved workout removed.';
 });
 
+setup.addEventListener('beforeinput', (event) => {
+  if (event.target.dataset.interval && event.data && /[^0-9]/.test(event.data)) event.preventDefault();
+});
+
+setup.addEventListener('paste', (event) => {
+  if (event.target.dataset.interval && !/^[0-9]{1,2}$/.test(event.clipboardData?.getData('text') ?? '')) {
+    event.preventDefault();
+  }
+});
+
 setup.addEventListener('input', (event) => {
-  if (event.target === favoritesControl) return;
+  const input = event.target;
+  const kind = input.dataset.interval;
+  if (kind) {
+    byId('round-limit').textContent = '';
+    input.value = input.value.replace(/[^0-9]/g, '').slice(0, 2);
+    if (input.value.length === 2) setIntervalDuration(kind, intervalSeconds(kind));
+  }
   clearResolvedSetupError();
   updateSettings();
-  if (favoritesControl.value !== '') updateFavorites();
+  if (selectedFavorite !== null) updateFavorites();
   save();
 });
 
 setup.addEventListener('focusout', (event) => {
-  if (durationNames.includes(event.target.name)) {
-    padDurationFields();
-    save();
-  }
+  const kind = event.target.dataset.interval;
+  if (!kind) return;
+  setIntervalDuration(kind, intervalSeconds(kind));
+  clearResolvedSetupError();
+  updateSummary();
+  save();
 });
 
 setup.addEventListener('click', (event) => {
@@ -294,11 +353,9 @@ setup.addEventListener('click', (event) => {
     const rounds = Number(field('rounds').value) || 1;
     field('rounds').value = Math.max(1, Math.min(9999, rounds + Number(delta)));
   } else {
-    const seconds = planFromSetup()[adjust] / 1000 || 0;
+    byId('round-limit').textContent = '';
     const minimum = adjust === 'active' ? 1 : 0;
-    const next = Math.max(minimum, Math.min(maxIntervalSeconds, seconds + Number(delta)));
-    field(adjust + 'Minutes').value = String(Math.floor(next / 60)).padStart(2, '0');
-    field(adjust + 'Seconds').value = String(next % 60).padStart(2, '0');
+    setIntervalDuration(adjust, Math.max(minimum, intervalSeconds(adjust) + Number(delta)));
   }
   clearResolvedSetupError();
   updateFavorites();
@@ -448,8 +505,11 @@ function render(deliverCues = true) {
   const phaseKey = state.kind + ':' + state.round;
   workout.dataset.phase = state.paused ? 'paused' : state.kind;
   setText(byId('phase'), state.paused ? 'Paused · ' + labels[state.kind] : labels[state.kind]);
-  const remaining = formatTime(Math.ceil(state.remaining / 1000));
-  setText(byId('time'), state.kind === 'complete' ? '' : remaining);
+  const showHours = state.end - state.start >= 3600 * 1000;
+  const remaining = formatTime(Math.ceil(state.remaining / 1000), showHours);
+  const countdown = byId('time');
+  countdown.classList.toggle('wide', showHours);
+  setText(countdown, state.kind === 'complete' ? '' : remaining);
   byId('time').hidden = state.kind === 'complete';
   const rounds = session.plan.rounds;
   const roundLabel = rounds === Infinity ? 'Round ' + state.round : 'Round ' + state.round + ' of ' + rounds;
@@ -586,7 +646,6 @@ setup.addEventListener('submit', (event) => {
     return;
   }
   if (!checkSetup()) return;
-  padDurationFields();
   save();
   start(planFromSetup(), field('mode').value);
 });
@@ -634,7 +693,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 load();
-padDurationFields();
 updateFavorites();
 updateSettings();
 savedPreferences = values(preferences, preferenceNames);
