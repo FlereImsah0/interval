@@ -1,5 +1,8 @@
-const cacheName = 'interval-timer-v8';
-const shell = ['./index.html', './style.css', './app.mjs', './timer.mjs', './icon.svg', './manifest.webmanifest'];
+const cacheName = 'interval-timer-v9';
+const recordings = ['ready', 'go', 'rest', 'run', 'walk', 'hold', 'relax', 'complete', 'next',
+  'one', 'two', 'three', 'three-seconds', 'five-seconds'];
+const shell = ['./index.html', './style.css', './app.mjs', './timer.mjs', './voice.mjs', './icon.svg',
+  './manifest.webmanifest', ...recordings.map((name) => './voice/' + name + '.wav')];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(shell)));
 });

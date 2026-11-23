@@ -120,9 +120,16 @@
         </fieldset>
         <fieldset class="settings-group">
           <legend>Sound and feedback</legend>
-          <label class="row">Sound <input name="sound" type="checkbox" checked></label>
-          <label class="row">Tone volume <input name="volume" type="range" min="0" max="100" value="100"></label>
-          <label class="row" id="voice-setting">Voice <input name="voice" type="checkbox"></label>
+          <fieldset class="audio-setting">
+            <legend>Audio mode</legend>
+            <div class="audio-options">
+              <label><input type="radio" name="audioMode" value="sound" checked><span>Sound</span></label>
+              <label><input type="radio" name="audioMode" value="voice"><span>Voice</span></label>
+              <label><input type="radio" name="audioMode" value="silent"><span>Silent</span></label>
+            </div>
+          </fieldset>
+          <label class="row" id="volume-setting">Volume <input name="volume" type="range" min="0" max="100" value="100"></label>
+          <div class="row" id="voice-preview" hidden><button id="play-voice" class="quiet" type="button">Play voice sample</button></div>
           <label class="row" id="vibration-setting">Workout vibration <input name="vibration" type="checkbox" checked></label>
           <div class="row" id="vibration-pattern"><label for="pattern">Vibration pattern</label><select id="pattern" name="pattern"><option value="activity">Three short / one long</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></div>
           <label class="row" id="touch-setting">Touch feedback <input name="touch" type="checkbox" checked></label>
@@ -133,6 +140,7 @@
           <legend>Custom voice commands</legend>
           <label class="row">Active <input name="goWord" type="text" maxlength="36" value="Go"></label>
           <label class="row">Rest <input name="restWord" type="text" maxlength="36" value="Rest"></label>
+          <p class="hint">Custom commands use an English voice from your browser when available.</p>
         </fieldset>
         <fieldset class="settings-group">
           <legend>Display</legend>

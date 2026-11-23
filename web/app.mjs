@@ -1,4 +1,5 @@
 import { Workout, durationParts, limitIntervalSeconds, maxRoundSeconds, secondsFromDuration, warningAt } from './timer.mjs';
+import { VoicePlayer } from './voice.mjs';
 
 const byId = (id) => document.getElementById(id);
 const setup = byId('setup');
@@ -31,7 +32,6 @@ const cues = {
   warning: { frequency: 260, seconds: 0.18, vibration: 95 },
 };
 const canVibrate = typeof navigator.vibrate === 'function';
-const canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 const audioType = window.AudioContext ?? window.webkitAudioContext;
 const canWake = 'wakeLock' in navigator;
 const words = {
@@ -73,9 +73,12 @@ function apply(form, entries) {
   }
 }
 
-const preferenceNames = [...preferences.elements].filter((field) => field.name).map((field) => field.name);
+const preferenceNames = [...new Set([...preferences.elements].map((field) => field.name).filter(Boolean))];
 const pref = (name) => preferences.elements.namedItem(name);
 const field = (name) => setup.elements.namedItem(name);
+const audioMode = () => pref('audioMode').value;
+const audioVolume = () => Number(pref('volume').value) / 100;
+const voicePlayer = new VoicePlayer(() => audio, audioVolume);
 
 function save() {
   try {
@@ -129,6 +132,10 @@ function load() {
       storedPreferences.volume = '100';
       storedPreferences.vibration = true;
     }
+    if (storedPreferences && !storedPreferences.audioMode) {
+      storedPreferences.audioMode = storedPreferences.voice ? 'voice'
+        : storedPreferences.sound === false ? 'silent' : 'sound';
+    }
     apply(preferences, storedPreferences);
     if (Array.isArray(saved?.favorites)) {
       favorites = saved.favorites;
@@ -156,8 +163,9 @@ function updateSettings() {
   const customWarning = pref('warning').value === 'custom';
   byId('custom-warning').hidden = !customWarning;
   pref('warningSeconds').disabled = !customWarning;
-  byId('custom-voice').hidden = field('mode').value !== 'custom';
-  byId('voice-setting').hidden = !canSpeak;
+  byId('volume-setting').hidden = audioMode() === 'silent';
+  byId('voice-preview').hidden = audioMode() !== 'voice';
+  byId('custom-voice').hidden = field('mode').value !== 'custom' || audioMode() !== 'voice';
   byId('vibration-setting').hidden = !canVibrate;
   byId('touch-setting').hidden = !canVibrate;
   byId('vibration-pattern').hidden = !canVibrate || !pref('vibration').checked;
@@ -370,7 +378,15 @@ function persistPreferences() {
   save();
 }
 
-preferences.addEventListener('change', persistPreferences);
+preferences.addEventListener('change', (event) => {
+  if (event.target.name === 'audioMode') silenceFeedback();
+  persistPreferences();
+});
+byId('play-voice').addEventListener('click', () => {
+  if (audioMode() !== 'voice') return;
+  enableAudio();
+  void voicePlayer.play('Get ready');
+});
 preferences.addEventListener('input', () => {
   const invalid = preferences.querySelector('[aria-invalid="true"]');
   if (!invalid || invalid.validity.valid) clearError(preferences, byId('settings-error'));
@@ -406,17 +422,18 @@ document.addEventListener('pointercancel', (event) => {
 });
 
 function enableAudio() {
-  if (!audioType || !pref('sound').checked) return;
+  if (!audioType || audioMode() === 'silent') return;
   try {
     audio ??= new audioType();
     audio.resume().catch(() => {});
+    if (audioMode() === 'voice') voicePlayer.preload();
   } catch {
     audio = null;
   }
 }
 
 function tone(kind) {
-  if (screen !== 'workout' || document.hidden || !pref('sound').checked || !audio) return;
+  if (screen !== 'workout' || document.hidden || audioMode() !== 'sound' || !audio) return;
   if (audio.state !== 'running') {
     const current = session;
     const cueTime = performance.now();
@@ -431,7 +448,7 @@ function tone(kind) {
   const gain = audio.createGain();
   const start = audio.currentTime;
   const { frequency, seconds } = cues[kind];
-  const level = Number(pref('volume').value) / 100 * 0.82;
+  const level = audioVolume() * 0.82;
   oscillator.type = 'triangle';
   oscillator.frequency.value = frequency;
   gain.gain.setValueAtTime(0, start);
@@ -450,16 +467,14 @@ function tone(kind) {
 }
 
 function feedback(kind, override = null) {
-  tone(kind);
-  const mode = sessionMode;
-  const pair = mode === 'custom' ? [pref('goWord').value.trim() || 'Go', pref('restWord').value.trim() || 'Rest'] : words[mode];
-  const spoken = override ?? { ready: 'Get ready', active: pair[0], rest: pair[1], complete: 'Workout complete' }[kind];
-  if (canSpeak && pref('voice').checked && spoken) {
-    window.speechSynthesis.cancel();
-    const cue = new SpeechSynthesisUtterance(spoken);
-    cue.lang = 'en';
-    cue.rate = mode === 'stretching' ? 0.85 : 1;
-    window.speechSynthesis.speak(cue);
+  if (audioMode() === 'sound') {
+    tone(kind);
+  } else if (audioMode() === 'voice') {
+    const mode = sessionMode;
+    const pair = mode === 'custom' ? [pref('goWord').value.trim() || 'Go', pref('restWord').value.trim() || 'Rest'] : words[mode];
+    const spoken = override ?? { ready: 'Get ready', active: pair[0], rest: pair[1], complete: 'Workout complete' }[kind];
+    const fallback = { active: 'Go', rest: 'Rest', warning: 'Get ready' }[kind] ?? spoken;
+    if (spoken) void voicePlayer.play(spoken, fallback);
   }
   if (canVibrate && pref('vibration').checked) {
     const choice = pref('pattern').value;
@@ -543,7 +558,7 @@ function silenceFeedback() {
   for (const oscillator of tones) oscillator.stop();
   tones.clear();
   if (audio?.state === 'running') audio.suspend().catch(() => {});
-  if (canSpeak) window.speechSynthesis.cancel();
+  voicePlayer.stop();
   if (canVibrate) navigator.vibrate(0);
 }
 
@@ -579,6 +594,7 @@ function showScreen(next) {
     else pauseSession();
   }
   if (previous === 'settings') {
+    silenceFeedback();
     if (preferences.checkValidity()) persistPreferences();
     else apply(preferences, savedPreferences);
     clearError(preferences, byId('settings-error'));
@@ -674,6 +690,7 @@ endPaused.addEventListener('click', () => {
 });
 
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden && screen === 'settings') silenceFeedback();
   if (!session || screen !== 'workout') return;
   if (document.hidden) {
     clearTimeout(tick);
