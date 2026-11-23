@@ -1,4 +1,4 @@
-const cacheName = 'interval-timer-v1';
+const cacheName = 'interval-timer-v2';
 const shell = ['./index.html', './style.css', './app.mjs', './timer.mjs', './icon.svg', './manifest.webmanifest'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(shell)));

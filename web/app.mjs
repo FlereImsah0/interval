@@ -75,7 +75,10 @@ function load() {
 
 function updateSettings() {
   document.documentElement.dataset.theme = pref('theme').value;
-  field('rounds').disabled = field('unlimited').checked;
+  const unlimited = field('unlimited').checked;
+  field('rounds').disabled = unlimited;
+  setup.querySelectorAll('[data-adjust="rounds"]').forEach((button) => { button.disabled = unlimited; });
+  updateSummary();
   const customWarning = pref('warning').value === 'custom';
   byId('custom-warning').hidden = !customWarning;
   pref('warningSeconds').disabled = !customWarning;
@@ -95,6 +98,35 @@ function planFromSetup() {
   };
 }
 
+function updateSummary() {
+  const { active, rest, rounds, prep } = planFromSetup();
+  const summary = byId('workout-summary');
+  if (rounds === Infinity) {
+    summary.textContent = 'Unlimited workout';
+    return;
+  }
+  const seconds = (prep + active * rounds + rest * (rounds - 1)) / 1000;
+  if (!Number.isFinite(seconds) || active < 1000 || rounds < 1) {
+    summary.textContent = '—';
+    return;
+  }
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor(seconds / 60) % 60;
+  const remainder = seconds % 60;
+  const parts = [];
+  if (hours) parts.push(hours + ' hr');
+  if (minutes) parts.push(minutes + ' min');
+  if (remainder || !parts.length) parts.push(remainder + ' sec');
+  summary.textContent = parts.join(' ') + ' total';
+}
+
+function padDurationFields() {
+  for (const name of durationNames) {
+    const input = field(name);
+    if (input.value && input.validity.valid) input.value = input.value.padStart(2, '0');
+  }
+}
+
 function formatTime(seconds) {
   return String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
 }
@@ -108,11 +140,13 @@ function updateFavorites(index = '') {
   favoritesControl.replaceChildren(new Option('Favorites', ''));
   favorites.forEach(({ label }, i) => favoritesControl.add(new Option(label, String(i))));
   favoritesControl.value = String(index);
+  favoritesControl.hidden = favorites.length === 0;
   byId('delete-favorite').hidden = favoritesControl.value === '';
 }
 
 byId('save-favorite').addEventListener('click', () => {
   if (!checkSetup()) return;
+  padDurationFields();
   const plan = planFromSetup();
   const config = values(setup, workoutNames);
   const label = field('mode').selectedOptions[0].text + ' · ' +
@@ -128,8 +162,9 @@ favoritesControl.addEventListener('change', () => {
   const index = favoritesControl.value;
   if (index !== '') apply(setup, favorites[Number(index)].config);
   updateFavorites(index);
-  updateSettings();
   field('activeSeconds').setCustomValidity('');
+  padDurationFields();
+  updateSettings();
   save();
 });
 
@@ -137,7 +172,7 @@ byId('delete-favorite').addEventListener('click', () => {
   favorites.splice(Number(favoritesControl.value), 1);
   updateFavorites();
   save();
-  favoritesControl.focus();
+  (favoritesControl.hidden ? byId('save-favorite') : favoritesControl).focus();
   byId('favorite-status').textContent = 'Saved workout removed.';
 });
 
@@ -146,6 +181,33 @@ setup.addEventListener('input', (event) => {
   field('activeSeconds').setCustomValidity('');
   updateSettings();
   if (favoritesControl.value !== '') updateFavorites();
+  save();
+});
+
+setup.addEventListener('focusout', (event) => {
+  if (durationNames.includes(event.target.name)) {
+    padDurationFields();
+    save();
+  }
+});
+
+setup.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-adjust]');
+  if (!button) return;
+  const { adjust, delta } = button.dataset;
+  if (adjust === 'rounds') {
+    const rounds = Number(field('rounds').value) || 1;
+    field('rounds').value = Math.max(1, Math.min(9999, rounds + Number(delta)));
+  } else {
+    const seconds = planFromSetup()[adjust] / 1000 || 0;
+    const minimum = adjust === 'active' ? 1 : 0;
+    const next = Math.max(minimum, Math.min(599 * 60 + 59, seconds + Number(delta)));
+    field(adjust + 'Minutes').value = String(Math.floor(next / 60)).padStart(2, '0');
+    field(adjust + 'Seconds').value = String(next % 60).padStart(2, '0');
+  }
+  field('activeSeconds').setCustomValidity('');
+  updateFavorites();
+  updateSummary();
   save();
 });
 
@@ -256,7 +318,9 @@ function render() {
   const rounds = session.plan.rounds;
   const roundLabel = rounds === Infinity ? 'Round ' + state.round : 'Round ' + state.round + ' of ' + rounds;
   setText(byId('round-info'), state.kind === 'complete' ? state.round + ' rounds complete' : roundLabel);
-  byId('progress').value = state.kind === 'complete' ? 1 : (state.elapsed - state.start) / (state.end - state.start);
+  const completion = state.kind === 'complete' ? 1 : (state.elapsed - state.start) / (state.end - state.start);
+  byId('progress').value = completion;
+  byId('dial').style.setProperty('--sweep', completion * 360 + 'deg');
   setText(pause, state.kind === 'complete' ? 'Repeat' : state.paused ? 'Resume' : 'Pause');
   setText(stop, state.kind === 'complete' ? 'Done' : 'Stop');
   if (!state.paused && document.visibilityState === 'visible') {
@@ -294,6 +358,7 @@ function start() {
 setup.addEventListener('submit', (event) => {
   event.preventDefault();
   if (checkSetup()) {
+    padDurationFields();
     save();
     start();
   }
@@ -334,6 +399,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 load();
+padDurationFields();
 updateFavorites();
 updateSettings();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});

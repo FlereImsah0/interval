@@ -2,8 +2,8 @@
 <html lang="en" data-theme="auto">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#141612">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f5f3">
   <meta name="description" content="A simple, offline interval timer for training.">
   <title>Interval Timer</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
@@ -12,58 +12,88 @@
   <script src="./app.mjs" type="module"></script>
 </head>
 <body>
+  <header class="heading">
+    <div class="header-inner">
+      <div class="brand"><img src="./icon.svg" alt="" width="36" height="36"><h1>Interval Timer</h1></div>
+      <button id="settings-button" type="button" class="quiet settings-button"><span class="gear" aria-hidden="true">⚙</span> Settings</button>
+    </div>
+  </header>
   <main class="shell">
-    <header class="heading">
-      <div class="brand"><img src="./icon.svg" alt="" width="34" height="34"><h1>Interval Timer</h1></div>
-      <button id="settings-button" type="button" class="quiet">Settings</button>
-    </header>
-    <form id="setup" class="surface">
+    <form id="setup">
+      <div class="setup-heading">
+        <h2>Workout setup</h2>
+        <output id="workout-summary" aria-live="off" class="summary">6 min 30 sec total</output>
+      </div>
       <div class="intervals">
         <fieldset class="interval active">
-          <legend>Active</legend>
-          <div class="duration">
-            <label><span class="sr-only">Active minutes</span><input name="activeMinutes" type="number" inputmode="numeric" min="0" max="599" required value="0"> <small>MIN</small></label>
-            <span aria-hidden="true">:</span>
-            <label><span class="sr-only">Active seconds</span><input name="activeSeconds" type="number" inputmode="numeric" min="0" max="59" required value="30"> <small>SEC</small></label>
+          <legend class="sr-only">Active interval</legend>
+          <div class="interval-label"><span class="phase-icon" aria-hidden="true"></span>Active</div>
+          <div class="interval-control">
+            <button type="button" class="step" data-adjust="active" data-delta="-5" aria-label="Decrease active time by five seconds">−</button>
+            <div class="duration">
+              <label><span class="sr-only">Active minutes</span><input name="activeMinutes" type="text" pattern="[0-5]?[0-9]{1,2}" inputmode="numeric" maxlength="3" required value="00"></label>
+              <span aria-hidden="true">:</span>
+              <label><span class="sr-only">Active seconds</span><input name="activeSeconds" type="text" pattern="[0-5]?[0-9]" inputmode="numeric" maxlength="2" required value="30"></label>
+            </div>
+            <button type="button" class="step" data-adjust="active" data-delta="5" aria-label="Increase active time by five seconds">+</button>
           </div>
+          <div class="duration-caption" aria-hidden="true">MIN <span>SEC</span></div>
         </fieldset>
         <fieldset class="interval rest">
-          <legend>Rest</legend>
-          <div class="duration">
-            <label><span class="sr-only">Rest minutes</span><input name="restMinutes" type="number" inputmode="numeric" min="0" max="599" required value="0"> <small>MIN</small></label>
-            <span aria-hidden="true">:</span>
-            <label><span class="sr-only">Rest seconds</span><input name="restSeconds" type="number" inputmode="numeric" min="0" max="59" required value="10"> <small>SEC</small></label>
+          <legend class="sr-only">Rest interval</legend>
+          <div class="interval-label"><span class="phase-icon" aria-hidden="true"></span>Rest</div>
+          <div class="interval-control">
+            <button type="button" class="step" data-adjust="rest" data-delta="-5" aria-label="Decrease rest time by five seconds">−</button>
+            <div class="duration">
+              <label><span class="sr-only">Rest minutes</span><input name="restMinutes" type="text" pattern="[0-5]?[0-9]{1,2}" inputmode="numeric" maxlength="3" required value="00"></label>
+              <span aria-hidden="true">:</span>
+              <label><span class="sr-only">Rest seconds</span><input name="restSeconds" type="text" pattern="[0-5]?[0-9]" inputmode="numeric" maxlength="2" required value="10"></label>
+            </div>
+            <button type="button" class="step" data-adjust="rest" data-delta="5" aria-label="Increase rest time by five seconds">+</button>
           </div>
+          <div class="duration-caption" aria-hidden="true">MIN <span>SEC</span></div>
         </fieldset>
       </div>
-      <div class="row rounds">
-        <label for="rounds">Rounds</label>
-        <input id="rounds" name="rounds" type="number" inputmode="numeric" min="1" max="9999" required value="10">
-        <label class="toggle"><input name="unlimited" type="checkbox"> Unlimited</label>
+      <div class="options">
+        <div class="option-row rounds">
+          <label for="rounds">Rounds</label>
+          <div class="round-controls">
+            <div class="round-stepper">
+              <button type="button" class="step" data-adjust="rounds" data-delta="-1" aria-label="Decrease rounds">−</button>
+              <input id="rounds" name="rounds" type="number" inputmode="numeric" min="1" max="9999" required value="10">
+              <button type="button" class="step" data-adjust="rounds" data-delta="1" aria-label="Increase rounds">+</button>
+            </div>
+            <label class="toggle"><input name="unlimited" type="checkbox"> Unlimited</label>
+          </div>
+        </div>
+        <div class="option-row">
+          <label for="mode">Activity</label>
+          <select id="mode" name="mode">
+            <option value="general">General</option><option value="running">Running</option><option value="swimming">Swimming</option>
+            <option value="stretching">Yoga / Stretching</option><option value="hiit">HIIT / Gym</option><option value="custom">Custom</option>
+          </select>
+        </div>
       </div>
-      <div class="row activity">
-        <label for="mode">Activity</label>
-        <select id="mode" name="mode">
-          <option value="general">General</option><option value="running">Running</option><option value="swimming">Swimming</option>
-          <option value="stretching">Yoga / Stretching</option><option value="hiit">HIIT / Gym</option><option value="custom">Custom</option>
-        </select>
-      </div>
-      <button type="submit" class="primary">Start</button>
+      <button type="submit" class="primary start"><span class="play" aria-hidden="true"></span> Start workout</button>
       <div class="favorites" aria-label="Favorites">
-        <select id="favorite" aria-label="Favorite workout"><option value="">Favorites</option></select>
-        <button id="save-favorite" type="button" class="quiet">Save workout</button>
+        <select id="favorite" aria-label="Favorite workout" hidden><option value="">Favorites</option></select>
+        <button id="save-favorite" type="button" class="quiet"><span aria-hidden="true">☆</span> Save workout</button>
         <button id="delete-favorite" type="button" class="quiet" hidden>Remove</button>
       </div>
       <p class="sr-only" role="status" id="favorite-status"></p>
     </form>
-    <section id="workout" class="surface workout" data-phase="ready" hidden aria-label="Workout">
-      <div id="phase" class="phase" role="status" aria-live="polite">Get ready</div>
-      <div id="time" class="time" role="timer" aria-live="off">00:00</div>
-      <div id="round-info" class="round-info"></div>
-      <progress id="progress" max="1" value="0" aria-label="Current interval progress"></progress>
+    <section id="workout" class="workout" data-phase="ready" hidden aria-label="Workout">
+      <div class="dial" id="dial">
+        <div class="dial-face">
+          <div id="phase" class="phase" role="status" aria-live="polite">Get ready</div>
+          <div id="time" class="time" role="timer" aria-live="off">00:00</div>
+          <div id="round-info" class="round-info"></div>
+        </div>
+      </div>
+      <progress id="progress" class="sr-only" max="1" value="0" aria-label="Current interval progress"></progress>
       <div class="workout-controls">
-        <button id="pause" class="primary" type="button">Pause</button>
         <button id="stop" class="quiet" type="button">Stop</button>
+        <button id="pause" class="primary" type="button">Pause</button>
       </div>
     </section>
   </main>
