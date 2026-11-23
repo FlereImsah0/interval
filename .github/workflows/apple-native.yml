@@ -1,0 +1,36 @@
+name: Apple native build
+
+on:
+  push:
+    paths:
+      - "native/apple/**"
+      - "native/audio/**"
+      - "web/voice/**"
+      - ".github/workflows/apple-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulator-build:
+    runs-on: macos-26
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check timer and notification schedules
+        working-directory: native/apple
+        run: |
+          swiftc Shared/Workout.swift Shared/BackgroundWorkoutCues.swift Checks/CuePlanChecks.swift -o "$RUNNER_TEMP/cue-plan-checks"
+          "$RUNNER_TEMP/cue-plan-checks"
+      - name: Generate the Apple project
+        working-directory: native/apple
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build iPhone and WidgetKit
+        working-directory: native/apple
+        run: xcodebuild -quiet -project IntervalTimer.xcodeproj -scheme IntervalTimer -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+      - name: Build standalone Apple Watch
+        working-directory: native/apple
+        run: xcodebuild -quiet -project IntervalTimer.xcodeproj -scheme IntervalTimerWatch -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build
