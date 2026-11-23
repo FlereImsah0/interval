@@ -107,6 +107,9 @@ h2 { font-size: clamp(1.65rem, 5vw, 2.3rem); letter-spacing: -.063em; font-weigh
 .intervals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
 fieldset { min-width: 0; margin: 0; }
 .interval {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .75rem;
   --tile: var(--active-bg);
   --tile-ink: var(--active-ink);
   border: 0;
@@ -119,7 +122,7 @@ fieldset { min-width: 0; margin: 0; }
 .phase-icon { width: 1.65rem; height: 1.65rem; display: grid; place-items: center; border-radius: .6rem; background: var(--tile-ink); color: var(--tile); flex: none; }
 .phase-icon::before { content: ""; width: .52rem; height: .64rem; background: currentColor; clip-path: polygon(0 0, 100% 50%, 0 100%); }
 .rest .phase-icon::before { width: .55rem; clip-path: polygon(0 0, 32% 0, 32% 100%, 0 100%, 0 0, 68% 0, 100% 0, 100% 100%, 68% 100%, 68% 0); }
-.interval-control { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; }
+.interval-control { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; column-gap: clamp(.2rem, 1vw, .6rem); min-width: 0; }
 .step {
   width: 44px;
   border: 0;
@@ -131,7 +134,7 @@ fieldset { min-width: 0; margin: 0; }
   padding: 0;
 }
 .interval .step { color: var(--tile-ink); }
-.duration { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; font-size: clamp(1.15rem, 4.4vw, 2.55rem); font-weight: 790; letter-spacing: -.065em; color: var(--ink); }
+.duration { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; font-size: clamp(1.15rem, 4.4vw, 2.55rem); font-weight: 790; letter-spacing: -.025em; column-gap: .06em; color: var(--ink); }
 .duration label { min-width: 0; }
 .duration input, .round-stepper input {
   width: 100%;
@@ -218,8 +221,7 @@ select, #preferences input:not([type="checkbox"], [type="range"]) { color: var(-
 }
 @media (max-width: 34rem) {
   .intervals { grid-template-columns: 1fr; gap: .55rem; }
-  .interval { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .3rem; padding: .65rem .75rem; border-radius: 1rem; }
-  .interval-control { width: clamp(10rem, 55vw, 13rem); }
+  .interval { grid-template-columns: auto minmax(0, 13rem); justify-content: space-between; align-items: center; gap: .45rem; padding: .65rem .75rem; border-radius: 1rem; }
   .duration { font-size: clamp(1.42rem, 5.8vw, 2rem); }
   .duration[data-long="true"] { font-size: clamp(1.07rem, 4.25vw, 1.5rem); }
   .round-controls { gap: .2rem .5rem; }
@@ -242,7 +244,7 @@ select, #preferences input:not([type="checkbox"], [type="range"]) { color: var(-
   .toggle { gap: .25rem; }
   .settings-group input[type="range"] { width: min(9rem, 100%); }
 }
-@media (max-width: 17rem) {
+@media (max-width: 19rem) {
   .interval { grid-template-columns: 1fr; }
   .interval-control { width: 100%; }
 }
