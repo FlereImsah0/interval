@@ -1,0 +1,3 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="140dp" android:minHeight="72dp" android:initialLayout="@layout/timer_widget"
+    android:updatePeriodMillis="0" android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" />

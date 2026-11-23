@@ -1,0 +1,8 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_base" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:gravity="center" android:orientation="vertical" android:padding="12dp" android:background="#075D4F">
+    <TextView android:id="@+id/widget_phase" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="#FFFFFF" android:textSize="14sp" android:text="Interval Timer" />
+    <Chronometer android:id="@+id/widget_clock" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="#FFFFFF" android:textSize="26sp" android:visibility="gone" />
+</LinearLayout>

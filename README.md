@@ -37,3 +37,7 @@ Use large tabular digits, high contrast, and written state names. Lime marks Act
 ## Run locally
 
 Serve the `web/` directory with a static HTTP server. HTTPS or localhost is required for the service worker. Run `node --test` from the repository root for automated timing checks. The deployable package is the contents of `web/`, with no build step.
+
+## Native prototypes
+
+The [native projects](native/README.md) generate Android phone and Wear OS debug builds and include iPhone and standalone Apple Watch sources. The native guide records device and build limitations and describes the Android widget, lock-screen notification and optional overlay, and the Apple WidgetKit and Live Activity setup.
