@@ -1,10 +1,9 @@
 <!doctype html>
-<html lang="en" data-theme="auto">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f3f5f3" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0c1018" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#0c1018">
   <title>Interval Timer</title>
   <link rel="canonical" href="https://interval.fleresjourney.com/">
   <link rel="icon" href="./favicon.ico" sizes="16x16 32x32">
@@ -30,18 +29,14 @@
   <meta name="twitter:image" content="https://interval.fleresjourney.com/social-preview.png">
   <meta name="twitter:image:alt" content="Interval Timer stopwatch and sample workout with 30 seconds active and 10 seconds rest.">
   <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="preload" href="./fonts/barlow-condensed-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="./style.css">
   <script src="./app.mjs" type="module"></script>
 </head>
 <body>
   <header class="heading">
     <div class="header-inner">
-      <nav class="header-nav" aria-label="App navigation" hidden>
-        <button id="back-button" type="button" class="quiet back-button" data-touch="navigation" disabled><span class="back-arrow" aria-hidden="true"></span> Back</button>
-        <button id="home-button" type="button" class="quiet" data-touch="navigation">Home</button>
-      </nav>
-      <div class="brand"><img src="./icon.svg" alt="" width="34" height="34" draggable="false"><h1>Interval Timer</h1></div>
-      <button id="settings-button" type="button" class="quiet settings-button" aria-label="Settings" data-touch="navigation"><span class="gear" aria-hidden="true">⚙</span><span class="settings-label">Settings</span></button>
+      <h1 class="brand"><img src="./icon.svg" alt="Interval Timer" width="44" height="44" draggable="false"></h1>
     </div>
   </header>
   <main class="shell" id="main">
@@ -145,38 +140,21 @@
           </fieldset>
           <p class="hint" id="audio-description">Tones at interval changes.</p>
           <label class="row" id="vibration-setting">Vibration <input name="vibration" type="checkbox" checked></label>
+          <label class="row">Volume <input name="volume" type="range" min="0" max="100" value="100"></label>
+          <div class="row" id="voice-preview" hidden><button id="play-voice" class="quiet" type="button">Test voice</button></div>
         </fieldset>
-        <details id="advanced-settings" class="advanced-settings">
-          <summary>Advanced <span class="favorite-chevron" aria-hidden="true"></span></summary>
-          <div class="advanced-fields">
-            <fieldset class="settings-group">
-              <legend>Timing</legend>
-              <div class="row"><label for="prep">Preparation (seconds)</label><input id="prep" name="prep" type="number" min="0" max="60" inputmode="numeric" value="0" required></div>
-              <div class="row" id="sound-warning"><label for="warning">Advance tone</label><select id="warning" name="warning"><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="countdown">3–2–1</option><option value="custom">Custom</option></select></div>
-              <div class="row" id="custom-warning" hidden><label for="warning-seconds">Warning (seconds)</label><input id="warning-seconds" name="warningSeconds" type="number" min="1" max="60" inputmode="numeric" value="10" required></div>
-              <label class="row" id="wake-setting">Keep screen awake <input name="awake" type="checkbox" checked></label>
-              <label class="row" hidden>Show over other apps <input id="android-overlay" type="checkbox"></label>
-            </fieldset>
-            <fieldset class="settings-group">
-              <legend>Feedback</legend>
-              <label class="row">Volume <input name="volume" type="range" min="0" max="100" value="100"></label>
-              <div class="row" id="voice-preview" hidden><button id="play-voice" class="quiet" type="button">Test voice</button></div>
-              <div class="row" id="vibration-pattern"><label for="pattern">Vibration pattern</label><select id="pattern" name="pattern"><option value="activity">Three short / one long</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></div>
-              <label class="row" id="touch-setting">Touch feedback <input name="touch" type="checkbox" checked></label>
-              <label class="row">Finish cue <input name="finish" type="checkbox" checked></label>
-            </fieldset>
-            <fieldset class="settings-group" id="custom-voice" hidden>
-              <legend>Custom voice commands</legend>
-              <label class="row">Active <input name="goWord" type="text" maxlength="36" value="Go"></label>
-              <label class="row">Rest <input name="restWord" type="text" maxlength="36" value="Rest"></label>
-              <p class="hint">Custom commands use an English voice from your browser when available.</p>
-            </fieldset>
-            <fieldset class="settings-group">
-              <legend>Display</legend>
-              <div class="row"><label for="theme">Appearance</label><select id="theme" name="theme"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
-            </fieldset>
-          </div>
-        </details>
+        <fieldset class="settings-group">
+          <legend>Timer &amp; display</legend>
+          <div class="row"><label for="prep">Preparation (seconds)</label><input id="prep" name="prep" type="number" min="0" max="60" inputmode="numeric" value="0" required></div>
+          <div class="row"><label for="theme">Appearance</label><select id="theme" name="theme"><option value="dark" selected>Dark</option><option value="light">Light</option><option value="auto">System</option></select></div>
+          <label class="row" id="wake-setting">Keep screen awake <input name="awake" type="checkbox" checked></label>
+          <label class="row" hidden>Show over other apps <input id="android-overlay" type="checkbox"></label>
+        </fieldset>
+        <fieldset class="settings-group" id="custom-voice" hidden>
+          <legend>Custom voice commands</legend>
+          <label class="row">Active <input name="goWord" type="text" maxlength="36" value="Go"></label>
+          <label class="row">Rest <input name="restWord" type="text" maxlength="36" value="Rest"></label>
+        </fieldset>
         <p id="settings-error" class="form-error" role="alert" hidden></p>
         <button class="primary" type="submit" data-touch="confirmation">Done</button>
       </form>
@@ -190,12 +168,6 @@
       <figure class="welcome-sports">
         <img src="./welcome-sports.jpg" width="1200" height="800"
           alt="Four athletes run, swim, stretch and lift a kettlebell" draggable="false">
-        <figcaption>
-          <span>Running</span>
-          <span>Swimming</span>
-          <span>Yoga / Stretching</span>
-          <span>HIIT / Gym</span>
-        </figcaption>
       </figure>
       <div class="welcome-intro">
         <h2 id="welcome-title" tabindex="-1">A timer for interval training</h2>
@@ -220,5 +192,16 @@
       <p class="publisher">Flere's Journey (Adriana Zubović)<br><a href="mailto:flere4apps@gmail.com">flere4apps@gmail.com</a></p>
     </section>
   </main>
+  <nav class="bottom-nav" aria-label="App navigation" hidden>
+    <button id="back-button" type="button" data-touch="navigation" hidden>
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg>Back
+    </button>
+    <button id="home-button" type="button" data-touch="navigation" hidden>
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3zM9 20v-7h6v7"/></svg>Home
+    </button>
+    <button id="settings-button" type="button" data-touch="navigation" hidden>
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5"/><circle cx="15" cy="17" r="2.5"/></svg>Settings
+    </button>
+  </nav>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import SwiftUI
 
-private enum TimerPage {
+private enum TimerPage: Hashable {
     case settings, welcome, terms, privacy
 }
 
@@ -11,85 +11,108 @@ struct AppleRootView: View {
     let startWorkout: (WorkoutPlan) async -> Void
 
     @AppStorage("welcomeSeen") private var welcomeSeen = false
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("voice") private var voice = false
+    @AppStorage("vibration") private var vibration = true
     @State private var path: [TimerPage] = []
     private var isWelcome: Bool { path.last == .welcome }
 
     var body: some View {
         VStack(spacing: 0) {
+            Image("icon-192.png", bundle: .main)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 38, height: 38)
+                .accessibilityLabel("Interval Timer")
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+
+            page
+                .id(path.last)
+                .transition(reduceMotion ? .identity : .opacity.combined(with: .offset(y: 8)))
+
             if !isWelcome || path.count > 1 {
                 HStack {
-                    Button { goBack() } label: { navigationLabel("Back", icon: "chevron.left") }
-                        .disabled(path.isEmpty)
-                    Button { goHome() } label: { navigationLabel("Home", icon: "house") }
-                    Spacer()
                     if path.isEmpty {
-                        Button { path.append(.settings) } label: { navigationLabel("Settings", icon: "gearshape") }
+                        Button { path.append(.settings) } label: { navigationLabel("Settings", icon: "slider.horizontal.3") }
+                    } else {
+                        Button { goBack() } label: { navigationLabel("Back", icon: "chevron.left") }
+                        Button { goHome() } label: { navigationLabel("Home", icon: "house") }
                     }
                 }
                 .buttonStyle(.borderless)
+                .padding(6)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
                 .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-            }
-
-            switch path.last {
-            case .settings:
-                Form {
-                    Section("Settings") {
-                        Button("Welcome") { path.append(.welcome) }
-                        Button("Terms") { path.append(.terms) }
-                        Button("Privacy") { path.append(.privacy) }
-                    }
-                }
-            case .welcome:
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Image("welcome-sports.jpg", bundle: .main)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .accessibilityLabel("Four athletes run, swim, stretch and lift a kettlebell")
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 5) {
-                            ForEach(["Running", "Swimming", "Yoga / Stretching", "HIIT / Gym"], id: \.self) {
-                                Text($0).frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        Text("A timer for interval training").font(.headline)
-                        Text("Set how long to move, how long to rest, and how many rounds to repeat.")
-                        Text("A tone or spoken countdown tells you when to switch.")
-                        Button("Set up a workout") { goHome() }
-                            .buttonStyle(.borderedProminent)
-                    }
-                    .padding(10)
-                }
-            case .terms:
-                legal("Terms", copy: [
-                    "Interval Timer helps you time exercise and rest. Use it at your own pace and in a safe place.",
-                    "The timer is a workout tool. For anything that needs an exact alert, use an appropriate alarm or timer.",
-                    "Some features depend on your device and settings. You can stop using Interval Timer whenever you like."
-                ])
-            case .privacy:
-                legal("Privacy", copy: [
-                    "You can use the timer without an account. The app has no ads or analytics trackers.",
-                    "Settings stay on your device. On iPhone, notification permission lets the timer deliver alerts.",
-                    "On Apple Watch, Health permission lets the timer run during a workout. The timer discards the workout and does not send health data to us.",
-                    "You can change permissions in your device settings. If you email us, we use your address and message to answer."
-                ])
-            case nil:
-                TimerScreen(model: model, notice: notice, startWorkout: startWorkout)
+                .padding(.bottom, 4)
             }
         }
-        .environment(\.colorScheme, isWelcome ? .dark : colorScheme)
+        .environment(\.colorScheme, .dark)
         .background {
-            if isWelcome {
-                Color(red: 12.0 / 255, green: 16.0 / 255, blue: 24.0 / 255)
-                    .ignoresSafeArea()
-            }
+            LinearGradient(colors: [Color(red: 0.05, green: 0.08, blue: 0.13),
+                                    Color(red: 0.08, green: 0.15, blue: 0.23)],
+                           startPoint: .bottomLeading, endPoint: .topTrailing)
+                .ignoresSafeArea()
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: path)
         .onAppear {
             if !welcomeSeen && path.isEmpty { path = [.welcome] }
+        }
+    }
+
+    @ViewBuilder
+    private var page: some View {
+        switch path.last {
+        case .settings:
+            Form {
+                Section("Workout cues") {
+                    Picker("Audio", selection: $voice) {
+                        Text("Sound").tag(false)
+                        Text("Voice").tag(true)
+                    }
+                    Toggle("Vibration", isOn: $vibration)
+                }
+                Section("About") {
+                    Button("Welcome") { path.append(.welcome) }
+                    Button("Terms") { path.append(.terms) }
+                    Button("Privacy") { path.append(.privacy) }
+                }
+            }
+            #if os(iOS)
+            .scrollContentBackground(.hidden)
+            #endif
+        case .welcome:
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Image("welcome-sports.jpg", bundle: .main)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .accessibilityLabel("Four athletes run, swim, stretch and lift a kettlebell")
+                    Text("A timer for interval training")
+                        .font(.custom("BarlowCondensed-Bold", size: 27, relativeTo: .title2))
+                    Text("Set how long to move, how long to rest, and how many rounds to repeat.")
+                    Text("A tone or spoken countdown tells you when to switch.")
+                    Button("Set up a workout") { goHome() }
+                        .buttonStyle(.borderedProminent)
+                }
+                .padding(10)
+            }
+        case .terms:
+            legal("Terms", copy: [
+                "Interval Timer helps you time exercise and rest. Use it at your own pace and in a safe place.",
+                "The timer is a workout tool. For anything that needs an exact alert, use an appropriate alarm or timer.",
+                "Some features depend on your device and settings. You can stop using Interval Timer whenever you like."
+            ])
+        case .privacy:
+            legal("Privacy", copy: [
+                "You can use the timer without an account. The app has no ads or analytics trackers.",
+                "Settings stay on your device. On iPhone, notification permission lets the timer deliver alerts.",
+                "On Apple Watch, Health permission lets the timer run during a workout. The timer discards the workout and does not send health data to us.",
+                "You can change permissions in your device settings. If you email us, we use your address and message to answer."
+            ])
+        case nil:
+            TimerScreen(model: model, notice: notice, startWorkout: startWorkout)
         }
     }
 
@@ -109,6 +132,7 @@ struct AppleRootView: View {
             .labelStyle(.iconOnly)
             #endif
             .accessibilityLabel(title)
+            .frame(maxWidth: .infinity, minHeight: 44)
     }
 
     private func legal(_ title: String, copy: [String]) -> some View {

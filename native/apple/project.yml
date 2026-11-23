@@ -15,6 +15,10 @@ targets:
     sources:
       - Shared
       - Phone
+      - path: ../../web/icon-192.png
+        buildPhase: resources
+      - path: ../../web/fonts/OFL-Barlow.txt
+        buildPhase: resources
       - path: ../../web/welcome-sports.jpg
         buildPhase: resources
       - path: ../../web/voice
@@ -33,6 +37,7 @@ targets:
       path: Config/Phone-Info.plist
       properties:
         CFBundleDisplayName: Interval Timer
+        UIAppFonts: [BarlowCondensed-Bold.ttf]
         NSSupportsLiveActivities: true
         UILaunchScreen: {}
         CFBundleURLTypes:
@@ -68,6 +73,10 @@ targets:
     sources:
       - Shared
       - Watch
+      - path: ../../web/icon-192.png
+        buildPhase: resources
+      - path: ../../web/fonts/OFL-Barlow.txt
+        buildPhase: resources
       - path: ../../web/welcome-sports.jpg
         buildPhase: resources
       - path: ../../web/voice
@@ -84,6 +93,7 @@ targets:
       path: Config/Watch-Info.plist
       properties:
         CFBundleDisplayName: Interval Timer
+        UIAppFonts: [BarlowCondensed-Bold.ttf]
         WKApplication: true
         WKWatchOnly: true
         WKBackgroundModes: [workout-processing]

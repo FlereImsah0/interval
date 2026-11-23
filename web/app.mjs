@@ -13,7 +13,8 @@ const favoriteList = byId('favorite-list');
 const favoriteToggle = byId('favorite-toggle');
 const settingsButton = byId('settings-button');
 const backButton = byId('back-button');
-const headerNav = backButton.closest('nav');
+const homeButton = byId('home-button');
+const bottomNav = backButton.closest('nav');
 const endFromSetup = byId('end-from-setup');
 const secondaryScreens = ['welcome', 'terms', 'privacy'];
 const screens = { setup, settings, workout, ...Object.fromEntries(secondaryScreens.map((name) => [name, byId(name)])) };
@@ -50,11 +51,13 @@ let audio = null;
 let wake = null;
 let wakePending = false;
 let screen = null;
+let screenDepth = 0;
 let returning = false;
 let setupScroll = 0;
 let sessionMode = 'general';
 let activeTouch = null;
 let savedPreferences;
+const savedCueOptions = { warning: '0', warningSeconds: '10', pattern: 'activity', touch: true, finish: true };
 let nativeId = null;
 let ignoredNativeId = null;
 let nativeStarting = false;
@@ -86,7 +89,7 @@ const voicePlayer = new VoicePlayer(() => audio, audioVolume);
 function save() {
   try {
     localStorage.setItem(storageKey, JSON.stringify({
-      setup: values(setup, workoutNames), preferences: savedPreferences, favorites, cueDefaults: 2,
+      setup: values(setup, workoutNames), preferences: { ...savedCueOptions, ...savedPreferences }, favorites, cueDefaults: 2,
     }));
     return true;
   } catch {
@@ -125,6 +128,9 @@ function load() {
     normalizeSavedDurations(saved?.setup);
     apply(setup, saved?.setup);
     const storedPreferences = saved?.preferences;
+    for (const name of Object.keys(savedCueOptions)) {
+      if (typeof storedPreferences?.[name] === typeof savedCueOptions[name]) savedCueOptions[name] = storedPreferences[name];
+    }
     if (saved?.cueDefaults !== 2 && storedPreferences?.volume === '65' &&
         storedPreferences.vibration === false && storedPreferences.pattern === 'activity') {
       storedPreferences.volume = '100';
@@ -168,16 +174,10 @@ function updateSettings() {
   setup.querySelectorAll('[data-adjust="rounds"]').forEach((button) => { button.disabled = unlimited; });
   updateSummary();
   const voice = audioMode() === 'voice';
-  const customWarning = !voice && pref('warning').value === 'custom';
-  byId('sound-warning').hidden = voice;
-  byId('custom-warning').hidden = !customWarning;
-  pref('warningSeconds').disabled = !customWarning;
   setText(byId('audio-description'), voice ? 'Spoken 3–2–1 countdown.' : 'Tones at interval changes.');
   byId('voice-preview').hidden = !voice || workoutIsRunning();
   byId('custom-voice').hidden = field('mode').value !== 'custom' || !voice;
   byId('vibration-setting').hidden = !canVibrate;
-  byId('touch-setting').hidden = !canVibrate;
-  byId('vibration-pattern').hidden = !canVibrate || !pref('vibration').checked;
   byId('wake-setting').hidden = !canWake;
 }
 
@@ -419,10 +419,8 @@ preferences.addEventListener('submit', (event) => {
   event.preventDefault();
   const invalid = [...preferences.elements].find((input) => input.willValidate && !input.validity.valid);
   if (invalid) {
-    byId('advanced-settings').open = true;
     invalid.closest('.row').after(byId('settings-error'));
-    showError(preferences, byId('settings-error'), invalid, invalid.name === 'prep'
-      ? 'Enter preparation time from 0 to 60 seconds.' : 'Enter an advance warning from 1 to 60 seconds.');
+    showError(preferences, byId('settings-error'), invalid, 'Enter preparation time from 0 to 60 seconds.');
     return;
   }
   persistPreferences();
@@ -431,7 +429,7 @@ preferences.addEventListener('submit', (event) => {
 
 document.addEventListener('pointerdown', (event) => {
   const button = event.target.closest('button:not(:disabled)');
-  if (!button || event.pointerType !== 'touch' || !event.isPrimary || !canVibrate || !pref('touch').checked) return;
+  if (!button || event.pointerType !== 'touch' || !event.isPrimary || !canVibrate || !savedCueOptions.touch) return;
   if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
   if (button.classList.contains('start') && pref('vibration').checked && !session) return;
   activeTouch = event.pointerId;
@@ -507,7 +505,7 @@ function feedback(kind, duration = 0) {
     }
   }
   if (canVibrate && pref('vibration').checked) {
-    const choice = pref('pattern').value;
+    const choice = savedCueOptions.pattern;
     const pattern = choice === 'activity' ? cues[kind].vibration
       : { short: 95, double: [100, 75, 100], long: 850 }[choice];
     navigator.vibrate(pattern);
@@ -582,7 +580,7 @@ function render() {
   const maxLateness = document.hidden ? 950 : 300;
   if (!android && !state.paused) {
     const entered = phaseKey !== lastPhase;
-    if (entered && state.elapsed - state.start <= maxLateness && (state.kind !== 'complete' || pref('finish').checked)) {
+    if (entered && state.elapsed - state.start <= maxLateness && (state.kind !== 'complete' || savedCueOptions.finish)) {
       feedback(state.kind, state.end - state.start);
     }
     if (audioMode() === 'voice') {
@@ -592,8 +590,7 @@ function render() {
         void voicePlayer.play(edge.spoken, undefined, cueRemaining);
       }
     } else if (!entered) {
-      const setting = pref('warning').value;
-      if (warningAt(state, setting === 'custom' ? pref('warningSeconds').value : setting, lastElapsed, maxLateness)) {
+      if (warningAt(state, warningSetting(), lastElapsed, maxLateness)) {
         feedback('warning');
       }
     }
@@ -655,6 +652,10 @@ function refreshHeader() {
   document.querySelector('.heading').classList.toggle('scrolled', scrollY > 0);
 }
 
+function warningSetting() {
+  return savedCueOptions.warning === 'custom' ? savedCueOptions.warningSeconds : savedCueOptions.warning;
+}
+
 function standaloneWelcome() {
   return screen === 'welcome' && history.state?.welcomeFromSettings !== true;
 }
@@ -674,13 +675,16 @@ function showScreen(next) {
     updateSettings();
   }
 
+  const depth = history.state?.intervalDepth ?? 0;
+  document.documentElement.dataset.direction = depth < screenDepth ? 'back' : 'forward';
+  screenDepth = depth;
   screen = next;
   document.documentElement.dataset.screen = next;
   applyTheme();
   for (const [name, element] of Object.entries(screens)) element.hidden = name !== next;
-  headerNav.hidden = standaloneWelcome();
+  bottomNav.hidden = standaloneWelcome();
   settingsButton.hidden = next !== 'setup';
-  backButton.disabled = next === 'setup';
+  backButton.hidden = homeButton.hidden = next === 'setup';
   if (next === 'setup') updateHomeAction();
   if (next === 'settings') updateSettings();
   if (session) render();
@@ -722,7 +726,7 @@ function goHome() {
 }
 
 settingsButton.addEventListener('click', () => openScreen('settings'));
-byId('home-button').addEventListener('click', goHome);
+homeButton.addEventListener('click', goHome);
 byId('welcome-start').addEventListener('click', goHome);
 settings.querySelector('.settings-links').addEventListener('click', (event) => {
   const link = event.target.closest('[data-screen]');
@@ -753,9 +757,8 @@ function start(plan, mode) {
       active: plan.active / 1000, rest: plan.rest / 1000, prep: plan.prep / 1000,
       rounds: plan.rounds === Infinity ? 0 : plan.rounds,
       mode, voice: audioMode() === 'voice', volume: Number(pref('volume').value),
-      vibration: pref('vibration').checked, pattern: pref('pattern').value,
-      finish: pref('finish').checked,
-      warning: pref('warning').value === 'custom' ? pref('warningSeconds').value : pref('warning').value,
+      vibration: pref('vibration').checked, pattern: savedCueOptions.pattern,
+      finish: savedCueOptions.finish, warning: warningSetting(),
       goWord: mode === 'custom' ? pref('goWord').value.trim() || 'Go' : '',
       restWord: mode === 'custom' ? pref('restWord').value.trim() || 'Rest' : '',
     });

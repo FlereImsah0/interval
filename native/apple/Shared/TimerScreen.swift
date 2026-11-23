@@ -18,7 +18,7 @@ struct TimerScreen: View {
             if let snapshot = model.snapshot {
                 Section(snapshot.paused ? "Paused" : snapshot.phase.stage.label) {
                     Text(formatRemaining(snapshot.remaining))
-                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .font(.custom("BarlowCondensed-Bold", size: 44, relativeTo: .largeTitle))
                         .monospacedDigit()
                         .minimumScaleFactor(0.55)
                     if snapshot.phase.stage != .complete {
@@ -32,11 +32,6 @@ struct TimerScreen: View {
                     duration("Active (seconds)", value: $active, increment: 1, range: 1...86_400)
                     duration("Rest (seconds)", value: $rest, increment: 1, range: 0...86_400)
                     duration("Rounds (0 for unlimited)", value: $rounds, increment: 1, range: 0...9999)
-                    Picker("Audio", selection: $voice) {
-                        Text("Sound").tag(false)
-                        Text("Voice").tag(true)
-                    }
-                    Toggle("Vibration", isOn: $vibration)
                     if invalid {
                         Text("Set an active interval and keep active time plus rest within 24 hours.")
                             .font(.footnote)
@@ -61,6 +56,9 @@ struct TimerScreen: View {
                 Section { Text(notice).font(.footnote).foregroundStyle(.secondary) }
             }
         }
+        #if os(iOS)
+        .scrollContentBackground(.hidden)
+        #endif
     }
 
     @ViewBuilder
