@@ -33,7 +33,7 @@
           <div class="interval-control">
             <button type="button" class="step" data-adjust="active" data-delta="-1" aria-label="Decrease active time by one second">−</button>
             <div class="duration">
-              <label><span class="sr-only">Active minutes</span><input name="activeMinutes" type="text" pattern="[0-5]?[0-9]{1,2}" inputmode="numeric" maxlength="3" required value="00"></label>
+              <label><span class="sr-only">Active minutes</span><input name="activeMinutes" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="00"></label>
               <span aria-hidden="true">:</span>
               <label><span class="sr-only">Active seconds</span><input name="activeSeconds" type="text" pattern="[0-5]?[0-9]" inputmode="numeric" maxlength="2" required value="30"></label>
             </div>
@@ -46,7 +46,7 @@
           <div class="interval-control">
             <button type="button" class="step" data-adjust="rest" data-delta="-1" aria-label="Decrease rest time by one second">−</button>
             <div class="duration">
-              <label><span class="sr-only">Rest minutes</span><input name="restMinutes" type="text" pattern="[0-5]?[0-9]{1,2}" inputmode="numeric" maxlength="3" required value="00"></label>
+              <label><span class="sr-only">Rest minutes</span><input name="restMinutes" type="text" pattern="[0-9]{1,2}" inputmode="numeric" maxlength="2" required value="00"></label>
               <span aria-hidden="true">:</span>
               <label><span class="sr-only">Rest seconds</span><input name="restSeconds" type="text" pattern="[0-5]?[0-9]" inputmode="numeric" maxlength="2" required value="10"></label>
             </div>
@@ -111,10 +111,10 @@
         <fieldset class="settings-group">
           <legend>Sound and feedback</legend>
           <label class="row">Sound <input name="sound" type="checkbox" checked></label>
-          <label class="row">Tone volume <input name="volume" type="range" min="0" max="100" value="65"></label>
+          <label class="row">Tone volume <input name="volume" type="range" min="0" max="100" value="100"></label>
           <label class="row" id="voice-setting">Voice <input name="voice" type="checkbox"></label>
-          <label class="row" id="vibration-setting">Workout vibration <input name="vibration" type="checkbox"></label>
-          <div class="row" id="vibration-pattern"><label for="pattern">Vibration pattern</label><select id="pattern" name="pattern"><option value="activity">Match activity</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></div>
+          <label class="row" id="vibration-setting">Workout vibration <input name="vibration" type="checkbox" checked></label>
+          <div class="row" id="vibration-pattern"><label for="pattern">Vibration pattern</label><select id="pattern" name="pattern"><option value="activity">Three short / one long</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></div>
           <label class="row" id="touch-setting">Touch feedback <input name="touch" type="checkbox" checked></label>
           <label class="row">Finish cue <input name="finish" type="checkbox" checked></label>
           <p class="hint">Keep the timer visible for cues. Your browser may pause sound or vibration when the screen locks.</p>

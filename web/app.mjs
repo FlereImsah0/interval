@@ -16,9 +16,17 @@ const headings = { setup: byId('setup-title'), settings: byId('settings-title'),
 const themeQuery = matchMedia('(prefers-color-scheme: dark)');
 const touchPatterns = { action: 8, navigation: 14, confirmation: [9, 24, 12] };
 const tones = new Set();
+const maxIntervalSeconds = 99 * 60 + 59;
 const durationNames = ['activeMinutes', 'activeSeconds', 'restMinutes', 'restSeconds'];
 const workoutNames = [...durationNames, 'rounds', 'unlimited', 'mode'];
 const storageKey = 'interval-timer-v1';
+const cues = {
+  ready: { frequency: 300, seconds: 0.25, vibration: 95 },
+  active: { frequency: 294, seconds: 0.56, vibration: [130, 75, 130, 75, 130] },
+  rest: { frequency: 196, seconds: 0.73, vibration: 850 },
+  complete: { frequency: 220, seconds: 0.9, vibration: 950 },
+  warning: { frequency: 260, seconds: 0.18, vibration: 95 },
+};
 const canVibrate = typeof navigator.vibrate === 'function';
 const canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 const audioType = window.AudioContext ?? window.webkitAudioContext;
@@ -68,7 +76,7 @@ const field = (name) => setup.elements.namedItem(name);
 function save() {
   try {
     localStorage.setItem(storageKey, JSON.stringify({
-      setup: values(setup, workoutNames), preferences: savedPreferences, favorites,
+      setup: values(setup, workoutNames), preferences: savedPreferences, favorites, cueDefaults: 2,
     }));
     return true;
   } catch {
@@ -76,12 +84,36 @@ function save() {
   }
 }
 
+function limitSavedDurations(config) {
+  let changed = false;
+  for (const interval of ['active', 'rest']) {
+    if (Number(config?.[interval + 'Minutes']) > 99) {
+      config[interval + 'Minutes'] = '99';
+      config[interval + 'Seconds'] = '59';
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
+    limitSavedDurations(saved?.setup);
     apply(setup, saved?.setup);
-    apply(preferences, saved?.preferences);
-    if (Array.isArray(saved?.favorites)) favorites = saved.favorites;
+    const storedPreferences = saved?.preferences;
+    if (saved?.cueDefaults !== 2 && storedPreferences?.volume === '65' &&
+        storedPreferences.vibration === false && storedPreferences.pattern === 'activity') {
+      storedPreferences.volume = '100';
+      storedPreferences.vibration = true;
+    }
+    apply(preferences, storedPreferences);
+    if (Array.isArray(saved?.favorites)) {
+      favorites = saved.favorites;
+      for (const favorite of favorites) {
+        if (limitSavedDurations(favorite.config)) favorite.label = favoriteLabel(favorite.config);
+      }
+    }
   } catch {
     // Local storage may be disabled. The timer can still run.
   }
@@ -119,10 +151,6 @@ function planFromSetup() {
 }
 
 function updateSummary() {
-  for (const name of ['activeMinutes', 'restMinutes']) {
-    const minutes = field(name);
-    minutes.closest('.duration').dataset.long = String(minutes.value.length > 2);
-  }
   const { active, rest, rounds, prep } = planFromSetup();
   const summary = byId('workout-summary');
   if (rounds === Infinity) {
@@ -185,7 +213,7 @@ function checkSetup() {
   const error = byId('setup-error');
   const invalidTime = durationNames.find((name) => !field(name).validity.valid);
   if (invalidTime) {
-    const message = invalidTime.endsWith('Seconds') ? 'Enter seconds from 0 to 59.' : 'Enter minutes from 0 to 599.';
+    const message = invalidTime.endsWith('Seconds') ? 'Enter seconds from 0 to 59.' : 'Enter minutes from 0 to 99.';
     return showError(setup, error, field(invalidTime), message);
   }
   if (planFromSetup().active < 1000) {
@@ -196,6 +224,14 @@ function checkSetup() {
   }
   clearError(setup, error);
   return true;
+}
+
+function favoriteLabel(config) {
+  const label = [...field('mode').options].find((option) => option.value === config.mode)?.text ?? 'General';
+  const active = Number(config.activeMinutes) * 60 + Number(config.activeSeconds);
+  const rest = Number(config.restMinutes) * 60 + Number(config.restSeconds);
+  const rounds = config.unlimited ? 'Unlimited' : config.rounds + ' rounds';
+  return label + ' · ' + formatTime(active) + ' / ' + formatTime(rest) + ' · ' + rounds;
 }
 
 function updateFavorites(index = '') {
@@ -209,11 +245,8 @@ function updateFavorites(index = '') {
 byId('save-favorite').addEventListener('click', () => {
   if (!checkSetup()) return;
   padDurationFields();
-  const plan = planFromSetup();
   const config = values(setup, workoutNames);
-  const label = field('mode').selectedOptions[0].text + ' · ' +
-    formatTime(plan.active / 1000) + ' / ' + formatTime(plan.rest / 1000) +
-    (plan.rounds === Infinity ? ' · Unlimited' : ' · ' + plan.rounds + ' rounds');
+  const label = favoriteLabel(config);
   let index = favorites.findIndex((item) => JSON.stringify(item.config) === JSON.stringify(config));
   if (index === -1) index = favorites.push({ label, config }) - 1;
   updateFavorites(index);
@@ -263,7 +296,7 @@ setup.addEventListener('click', (event) => {
   } else {
     const seconds = planFromSetup()[adjust] / 1000 || 0;
     const minimum = adjust === 'active' ? 1 : 0;
-    const next = Math.max(minimum, Math.min(599 * 60 + 59, seconds + Number(delta)));
+    const next = Math.max(minimum, Math.min(maxIntervalSeconds, seconds + Number(delta)));
     field(adjust + 'Minutes').value = String(Math.floor(next / 60)).padStart(2, '0');
     field(adjust + 'Seconds').value = String(next % 60).padStart(2, '0');
   }
@@ -340,12 +373,14 @@ function tone(kind) {
   const oscillator = audio.createOscillator();
   const gain = audio.createGain();
   const start = audio.currentTime;
-  const calm = sessionMode === 'stretching';
-  const length = kind === 'complete' ? 0.33 : calm ? 0.19 : 0.12;
-  oscillator.frequency.value = { ready: 500, active: 880, rest: 440, complete: 660, warning: 590 }[kind];
+  const { frequency, seconds } = cues[kind];
+  const level = Number(pref('volume').value) / 100 * 0.82;
+  oscillator.type = 'triangle';
+  oscillator.frequency.value = frequency;
   gain.gain.setValueAtTime(0, start);
-  gain.gain.linearRampToValueAtTime(Number(pref('volume').value) * (calm ? .0012 : .0022), start + .015);
-  gain.gain.linearRampToValueAtTime(0, start + length);
+  gain.gain.linearRampToValueAtTime(level, start + 0.035);
+  gain.gain.setValueAtTime(level, start + seconds * 0.58);
+  gain.gain.linearRampToValueAtTime(0, start + seconds);
   oscillator.connect(gain).connect(audio.destination);
   tones.add(oscillator);
   oscillator.addEventListener('ended', () => {
@@ -354,7 +389,7 @@ function tone(kind) {
     gain.disconnect();
   }, { once: true });
   oscillator.start(start);
-  oscillator.stop(start + length);
+  oscillator.stop(start + seconds);
 }
 
 function feedback(kind, override = null) {
@@ -371,11 +406,8 @@ function feedback(kind, override = null) {
   }
   if (canVibrate && pref('vibration').checked) {
     const choice = pref('pattern').value;
-    const patterns = mode === 'swimming'
-      ? { active: [100, 65, 100, 65, 100], rest: [480] }
-      : { active: [110, 75, 110], rest: [260] };
-    const pattern = choice === 'activity' ? (patterns[kind] ?? 95)
-      : { short: 95, double: [100, 75, 100], long: 350 }[choice];
+    const pattern = choice === 'activity' ? cues[kind].vibration
+      : { short: 95, double: [100, 75, 100], long: 850 }[choice];
     navigator.vibrate(pattern);
   }
 }

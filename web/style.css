@@ -150,7 +150,6 @@ fieldset { min-width: 0; margin: 0; }
 }
 .duration input[name$="Minutes"] { text-align: right; }
 .duration input[name$="Seconds"] { text-align: left; }
-.duration[data-long="true"] { font-size: clamp(1.05rem, 3.7vw, 2rem); }
 input[aria-invalid="true"] { outline: 2px solid var(--error-ink); outline-offset: 1px; }
 .options { margin-block: .8rem; overflow: hidden; border-radius: 1.35rem; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
 .option-row, .row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .35rem .8rem; }
@@ -223,7 +222,6 @@ select, #preferences input:not([type="checkbox"], [type="range"]) { color: var(-
   .intervals { grid-template-columns: 1fr; gap: .55rem; }
   .interval { grid-template-columns: auto minmax(0, 13rem); justify-content: space-between; align-items: center; gap: .45rem; padding: .65rem .75rem; border-radius: 1rem; }
   .duration { font-size: clamp(1.42rem, 5.8vw, 2rem); }
-  .duration[data-long="true"] { font-size: clamp(1.07rem, 4.25vw, 1.5rem); }
   .round-controls { gap: .2rem .5rem; }
   .round-stepper { grid-template-columns: 44px 2.6rem 44px; }
 }
