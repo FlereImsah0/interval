@@ -58,7 +58,8 @@ html { scrollbar-color: var(--line) transparent; scrollbar-width: thin; }
 body { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--ink); }
 button, input, select { min-height: 44px; font: inherit; }
 button, select { cursor: pointer; touch-action: manipulation; }
-button, .brand, .time, .phase, .interval-label { user-select: none; -webkit-user-select: none; }
+body { -webkit-user-select: none; user-select: none; }
+input, textarea { -webkit-user-select: text; user-select: text; }
 button { -webkit-tap-highlight-color: transparent; transition: transform 120ms ease, filter 120ms ease; }
 button:active:not(:disabled) { filter: brightness(.87); }
 button:disabled { cursor: default; opacity: .4; }
