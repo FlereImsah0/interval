@@ -13,6 +13,7 @@ const favoriteList = byId('favorite-list');
 const favoriteToggle = byId('favorite-toggle');
 const settingsButton = byId('settings-button');
 const backButton = byId('back-button');
+const headerNav = backButton.closest('nav');
 const endFromSetup = byId('end-from-setup');
 const secondaryScreens = ['welcome', 'terms', 'privacy'];
 const screens = { setup, settings, workout, ...Object.fromEntries(secondaryScreens.map((name) => [name, byId(name)])) };
@@ -654,6 +655,10 @@ function refreshHeader() {
   document.querySelector('.heading').classList.toggle('scrolled', scrollY > 0);
 }
 
+function standaloneWelcome() {
+  return screen === 'welcome' && history.state?.welcomeFromSettings !== true;
+}
+
 function showScreen(next) {
   if (screen === next) return;
   const previous = screen;
@@ -673,6 +678,7 @@ function showScreen(next) {
   document.documentElement.dataset.screen = next;
   applyTheme();
   for (const [name, element] of Object.entries(screens)) element.hidden = name !== next;
+  headerNav.hidden = standaloneWelcome();
   settingsButton.hidden = next !== 'setup';
   backButton.disabled = next === 'setup';
   if (next === 'setup') updateHomeAction();
@@ -688,7 +694,8 @@ function showScreen(next) {
 function openScreen(next) {
   if (returning || screen === next) return;
   const depth = (history.state?.intervalDepth ?? 0) + 1;
-  history.pushState({ intervalScreen: next, intervalDepth: depth }, '', '#' + next);
+  history.pushState({ intervalScreen: next, intervalDepth: depth,
+    welcomeFromSettings: next === 'welcome' && screen === 'settings' }, '', '#' + next);
   showScreen(next);
 }
 
@@ -700,6 +707,11 @@ function goBack() {
 
 function goHome() {
   if (returning) return;
+  if (standaloneWelcome()) {
+    history.replaceState({ intervalScreen: 'setup', intervalDepth: 0 }, '', location.pathname + location.search);
+    showScreen('setup');
+    return;
+  }
   if (screen === 'setup') {
     scrollTo(0, 0);
     headings.setup.focus({ preventScroll: true });
@@ -823,7 +835,13 @@ const direct = location.hash.slice(1);
 const baseURL = location.pathname + location.search;
 const isSecondary = secondaryScreens.includes(direct);
 const recognized = direct === 'settings' || isSecondary;
-if (recognized && history.state?.intervalScreen === direct && history.state?.intervalDepth > 0) {
+function showStandaloneWelcome() {
+  history.replaceState({ intervalScreen: 'welcome', intervalDepth: 0 }, '', '#welcome');
+  showScreen('welcome');
+}
+if (direct === 'welcome' && history.state?.welcomeFromSettings !== true) {
+  showStandaloneWelcome();
+} else if (recognized && history.state?.intervalScreen === direct && history.state?.intervalDepth > 0) {
   showScreen(direct);
 } else {
   history.replaceState({ intervalScreen: 'setup', intervalDepth: 0 }, '', baseURL);
@@ -835,7 +853,7 @@ if (recognized && history.state?.intervalScreen === direct && history.state?.int
   } else if (!direct) {
     let seen = false;
     try { seen = localStorage.getItem(welcomeKey) === '1'; } catch { /* Storage is optional. */ }
-    if (!seen) openScreen('welcome');
+    if (!seen) showStandaloneWelcome();
   }
 }
 if (!screen) showScreen('setup');

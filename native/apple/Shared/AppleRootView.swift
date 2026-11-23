@@ -17,18 +17,20 @@ struct AppleRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button { goBack() } label: { navigationLabel("Back", icon: "chevron.left") }
-                    .disabled(path.isEmpty)
-                Button { goHome() } label: { navigationLabel("Home", icon: "house") }
-                Spacer()
-                if path.isEmpty {
-                    Button { path.append(.settings) } label: { navigationLabel("Settings", icon: "gearshape") }
+            if !isWelcome || path.count > 1 {
+                HStack {
+                    Button { goBack() } label: { navigationLabel("Back", icon: "chevron.left") }
+                        .disabled(path.isEmpty)
+                    Button { goHome() } label: { navigationLabel("Home", icon: "house") }
+                    Spacer()
+                    if path.isEmpty {
+                        Button { path.append(.settings) } label: { navigationLabel("Settings", icon: "gearshape") }
+                    }
                 }
+                .buttonStyle(.borderless)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
             }
-            .buttonStyle(.borderless)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
 
             switch path.last {
             case .settings:
