@@ -60,3 +60,11 @@ test('time fields keep 59 seconds even if the combined round is too long', () =>
   assert.deepEqual(durationParts(limitIntervalSeconds(secondsFromDuration(24, 94, 0))), [24, 0, 0]);
   assert.equal(limitIntervalSeconds(-1), 0);
 });
+
+test('spoken countdown starts at the phase boundary for short intervals', () => {
+  const phase = { kind: 'active', start: 1000, end: 4000, elapsed: 1000 };
+  assert.deepEqual(warningAt(phase, 'countdown', 999), { seconds: 3, spoken: '3' });
+  assert.deepEqual(warningAt({ ...phase, elapsed: 2010 }, 'countdown', 1999), { seconds: 2, spoken: '2' });
+  assert.deepEqual(warningAt({ ...phase, end: 2000 }, 'countdown', 999), { seconds: 1, spoken: '1' });
+  assert.equal(warningAt(phase, 3, 999), null);
+});

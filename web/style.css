@@ -222,14 +222,17 @@ select, #preferences input:not([type="checkbox"], [type="range"]) { color: var(-
   background: var(--surface);
 }
 .settings-group legend { padding-inline: .35rem; margin-left: -.35rem; color: var(--muted); font-size: .9rem; font-weight: 750; }
-.audio-setting { padding: .4rem 0 .55rem; border: 0; }
-.audio-setting legend { margin: 0; padding: 0; }
-.audio-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .2rem; padding: .2rem; border-radius: .85rem; background: var(--soft); }
+.audio-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .2rem; padding: .2rem; border-radius: .85rem; background: var(--soft); }
 .audio-options label { min-width: 0; position: relative; cursor: pointer; }
 .audio-options input { position: absolute; width: 1px; height: 1px; min-height: 0; opacity: 0; }
 .audio-options span { display: grid; place-items: center; min-height: 44px; padding: .25rem; text-align: center; border: 1px solid transparent; border-radius: .65rem; font-weight: 680; }
 .audio-options input:checked + span { border-color: var(--line); background: var(--surface); color: var(--brand); }
 .audio-options input:focus-visible + span { outline: 2px solid var(--rest-ink); outline-offset: -2px; }
+.advanced-settings { margin-bottom: 1rem; border: 1px solid var(--line); border-radius: 1rem; }
+.advanced-settings summary { display: flex; align-items: center; justify-content: space-between; min-height: 3rem; padding: .45rem .85rem; cursor: pointer; list-style: none; font-weight: 700; }
+.advanced-settings summary::-webkit-details-marker { display: none; }
+.advanced-settings[open] .favorite-chevron { transform: rotate(225deg) translateY(-.1rem); }
+.advanced-fields { padding: .35rem .65rem .05rem; }
 #voice-preview .quiet { color: var(--brand); }
 .settings-group .row { min-height: 3.25rem; padding: .25rem 0; }
 .settings-group .row + .row { border-top: 1px solid var(--line); }

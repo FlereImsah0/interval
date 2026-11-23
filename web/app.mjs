@@ -34,13 +34,6 @@ const cues = {
 const canVibrate = typeof navigator.vibrate === 'function';
 const audioType = window.AudioContext ?? window.webkitAudioContext;
 const canWake = 'wakeLock' in navigator;
-const words = {
-  general: ['Go', 'Rest'],
-  running: ['Run', 'Walk'],
-  swimming: ['Go', 'Rest'],
-  stretching: ['Hold', 'Relax'],
-  hiit: ['Go', 'Next round after rest'],
-};
 let favorites = [];
 let selectedFavorite = null;
 let session = null;
@@ -131,6 +124,10 @@ function load() {
       storedPreferences.audioMode = storedPreferences.voice ? 'voice'
         : storedPreferences.sound === false ? 'silent' : 'sound';
     }
+    if (storedPreferences?.audioMode === 'silent') {
+      storedPreferences.audioMode = 'sound';
+      storedPreferences.volume = '0';
+    }
     apply(preferences, storedPreferences);
     if (Array.isArray(saved?.favorites)) {
       favorites = saved.favorites;
@@ -155,12 +152,14 @@ function updateSettings() {
   field('rounds').disabled = unlimited;
   setup.querySelectorAll('[data-adjust="rounds"]').forEach((button) => { button.disabled = unlimited; });
   updateSummary();
-  const customWarning = pref('warning').value === 'custom';
+  const voice = audioMode() === 'voice';
+  const customWarning = !voice && pref('warning').value === 'custom';
+  byId('sound-warning').hidden = voice;
   byId('custom-warning').hidden = !customWarning;
   pref('warningSeconds').disabled = !customWarning;
-  byId('volume-setting').hidden = audioMode() === 'silent';
-  byId('voice-preview').hidden = audioMode() !== 'voice';
-  byId('custom-voice').hidden = field('mode').value !== 'custom' || audioMode() !== 'voice';
+  setText(byId('audio-description'), voice ? 'Spoken 3–2–1 countdown.' : 'Tones at interval changes.');
+  byId('voice-preview').hidden = !voice;
+  byId('custom-voice').hidden = field('mode').value !== 'custom' || !voice;
   byId('vibration-setting').hidden = !canVibrate;
   byId('touch-setting').hidden = !canVibrate;
   byId('vibration-pattern').hidden = !canVibrate || !pref('vibration').checked;
@@ -388,7 +387,7 @@ preferences.addEventListener('change', (event) => {
 byId('play-voice').addEventListener('click', () => {
   if (audioMode() !== 'voice') return;
   enableAudio();
-  void voicePlayer.play('Get ready');
+  void voicePlayer.play('3');
 });
 preferences.addEventListener('input', () => {
   const invalid = preferences.querySelector('[aria-invalid="true"]');
@@ -398,6 +397,7 @@ preferences.addEventListener('submit', (event) => {
   event.preventDefault();
   const invalid = [...preferences.elements].find((input) => input.willValidate && !input.validity.valid);
   if (invalid) {
+    byId('advanced-settings').open = true;
     invalid.closest('.row').after(byId('settings-error'));
     showError(preferences, byId('settings-error'), invalid, invalid.name === 'prep'
       ? 'Enter preparation time from 0 to 60 seconds.' : 'Enter an advance warning from 1 to 60 seconds.');
@@ -425,7 +425,7 @@ document.addEventListener('pointercancel', (event) => {
 });
 
 function enableAudio() {
-  if (!audioType || audioMode() === 'silent') return;
+  if (!audioType || !audioVolume()) return;
   try {
     audio ??= new audioType();
     audio.resume().catch(() => {});
@@ -469,15 +469,15 @@ function tone(kind) {
   oscillator.stop(start + seconds);
 }
 
-function feedback(kind, override = null) {
-  if (audioMode() === 'sound') {
-    tone(kind);
-  } else if (audioMode() === 'voice') {
-    const mode = sessionMode;
-    const pair = mode === 'custom' ? [pref('goWord').value.trim() || 'Go', pref('restWord').value.trim() || 'Rest'] : words[mode];
-    const spoken = override ?? { ready: 'Get ready', active: pair[0], rest: pair[1], complete: 'Workout complete' }[kind];
-    const fallback = { active: 'Go', rest: 'Rest', warning: 'Get ready' }[kind] ?? spoken;
-    if (spoken) void voicePlayer.play(spoken, fallback);
+function feedback(kind, duration = 0) {
+  if (audioVolume()) {
+    if (audioMode() === 'sound') tone(kind);
+    else if (kind === 'complete') void voicePlayer.play('Workout complete');
+    else if (sessionMode === 'custom' && duration > 3000 && (kind === 'active' || kind === 'rest')) {
+      const fallback = kind === 'active' ? 'Go' : 'Rest';
+      const command = pref(kind === 'active' ? 'goWord' : 'restWord').value.trim();
+      void voicePlayer.play(command || fallback, fallback);
+    }
   }
   if (canVibrate && pref('vibration').checked) {
     const choice = pref('pattern').value;
@@ -539,12 +539,18 @@ function render(deliverCues = true) {
   setText(pause, state.kind === 'complete' ? 'Repeat' : state.paused ? 'Resume' : 'Pause');
   setText(stop, state.kind === 'complete' ? 'Done' : 'End workout');
   if (deliverCues && !state.paused && !document.hidden) {
-    if (phaseKey !== lastPhase && state.elapsed - state.start <= 300) {
-      if (state.kind !== 'complete' || pref('finish').checked) feedback(state.kind);
-    } else if (phaseKey === lastPhase) {
+    const entered = phaseKey !== lastPhase;
+    if (entered && state.elapsed - state.start <= 300 && (state.kind !== 'complete' || pref('finish').checked)) {
+      feedback(state.kind, state.end - state.start);
+    }
+    if (audioMode() === 'voice') {
+      const edge = warningAt(state, 'countdown', entered ? state.start - 1 : lastElapsed);
+      if (edge && audioVolume()) void voicePlayer.play(edge.spoken);
+    } else if (!entered) {
       const setting = pref('warning').value;
-      const edge = warningAt(state, setting === 'custom' ? pref('warningSeconds').value : setting, lastElapsed);
-      if (edge) feedback('warning', edge.spoken ?? edge.seconds + ' seconds');
+      if (warningAt(state, setting === 'custom' ? pref('warningSeconds').value : setting, lastElapsed)) {
+        feedback('warning');
+      }
     }
   }
   lastPhase = phaseKey;

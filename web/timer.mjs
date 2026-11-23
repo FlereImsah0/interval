@@ -65,7 +65,8 @@ export function warningAt(phase, warning, previous) {
   for (const seconds of offsets) {
     if (!seconds) continue;
     const threshold = phase.end - seconds * 1000;
-    if (threshold > phase.start && previous < threshold && phase.elapsed >= threshold && phase.elapsed - threshold <= 300) {
+    const insidePhase = threshold > phase.start || (warning === 'countdown' && threshold === phase.start);
+    if (insidePhase && previous < threshold && phase.elapsed >= threshold && phase.elapsed - threshold <= 300) {
       return { seconds, spoken: warning === 'countdown' ? String(seconds) : null };
     }
   }

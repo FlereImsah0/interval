@@ -112,40 +112,45 @@
       <h2 id="settings-title" tabindex="-1">Settings</h2>
       <form id="preferences" novalidate>
         <fieldset class="settings-group">
-          <legend>Workout</legend>
-          <div class="row"><label for="prep">Preparation (seconds)</label><input id="prep" name="prep" type="number" min="0" max="60" inputmode="numeric" value="0" required></div>
-          <div class="row"><label for="warning">Advance warning</label><select id="warning" name="warning"><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="countdown">3–2–1</option><option value="custom">Custom</option></select></div>
-          <div class="row" id="custom-warning" hidden><label for="warning-seconds">Warning (seconds)</label><input id="warning-seconds" name="warningSeconds" type="number" min="1" max="60" inputmode="numeric" value="10" required></div>
-          <label class="row" id="wake-setting">Keep screen awake <input name="awake" type="checkbox" checked></label>
+          <legend>Workout cues</legend>
+          <div class="audio-options" aria-describedby="audio-description">
+            <label><input type="radio" name="audioMode" value="sound" checked><span>Sound</span></label>
+            <label><input type="radio" name="audioMode" value="voice"><span>Voice</span></label>
+          </div>
+          <p class="hint" id="audio-description">Tones at interval changes.</p>
+          <label class="row" id="vibration-setting">Vibration <input name="vibration" type="checkbox" checked></label>
         </fieldset>
-        <fieldset class="settings-group">
-          <legend>Sound and feedback</legend>
-          <fieldset class="audio-setting">
-            <legend>Audio mode</legend>
-            <div class="audio-options">
-              <label><input type="radio" name="audioMode" value="sound" checked><span>Sound</span></label>
-              <label><input type="radio" name="audioMode" value="voice"><span>Voice</span></label>
-              <label><input type="radio" name="audioMode" value="silent"><span>Silent</span></label>
-            </div>
-          </fieldset>
-          <label class="row" id="volume-setting">Volume <input name="volume" type="range" min="0" max="100" value="100"></label>
-          <div class="row" id="voice-preview" hidden><button id="play-voice" class="quiet" type="button">Play voice sample</button></div>
-          <label class="row" id="vibration-setting">Workout vibration <input name="vibration" type="checkbox" checked></label>
-          <div class="row" id="vibration-pattern"><label for="pattern">Vibration pattern</label><select id="pattern" name="pattern"><option value="activity">Three short / one long</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></div>
-          <label class="row" id="touch-setting">Touch feedback <input name="touch" type="checkbox" checked></label>
-          <label class="row">Finish cue <input name="finish" type="checkbox" checked></label>
-          <p class="hint">Keep the timer visible for cues. Your browser may pause sound or vibration when the screen locks.</p>
-        </fieldset>
-        <fieldset class="settings-group" id="custom-voice">
-          <legend>Custom voice commands</legend>
-          <label class="row">Active <input name="goWord" type="text" maxlength="36" value="Go"></label>
-          <label class="row">Rest <input name="restWord" type="text" maxlength="36" value="Rest"></label>
-          <p class="hint">Custom commands use an English voice from your browser when available.</p>
-        </fieldset>
-        <fieldset class="settings-group">
-          <legend>Display</legend>
-          <div class="row"><label for="theme">Appearance</label><select id="theme" name="theme"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
-        </fieldset>
+        <details id="advanced-settings" class="advanced-settings">
+          <summary>Advanced <span class="favorite-chevron" aria-hidden="true"></span></summary>
+          <div class="advanced-fields">
+            <fieldset class="settings-group">
+              <legend>Timing</legend>
+              <div class="row"><label for="prep">Preparation (seconds)</label><input id="prep" name="prep" type="number" min="0" max="60" inputmode="numeric" value="0" required></div>
+              <div class="row" id="sound-warning"><label for="warning">Advance tone</label><select id="warning" name="warning"><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="countdown">3–2–1</option><option value="custom">Custom</option></select></div>
+              <div class="row" id="custom-warning" hidden><label for="warning-seconds">Warning (seconds)</label><input id="warning-seconds" name="warningSeconds" type="number" min="1" max="60" inputmode="numeric" value="10" required></div>
+              <label class="row" id="wake-setting">Keep screen awake <input name="awake" type="checkbox" checked></label>
+            </fieldset>
+            <fieldset class="settings-group">
+              <legend>Feedback</legend>
+              <label class="row">Volume <input name="volume" type="range" min="0" max="100" value="100"></label>
+              <div class="row" id="voice-preview" hidden><button id="play-voice" class="quiet" type="button">Test voice</button></div>
+              <div class="row" id="vibration-pattern"><label for="pattern">Vibration pattern</label><select id="pattern" name="pattern"><option value="activity">Three short / one long</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></div>
+              <label class="row" id="touch-setting">Touch feedback <input name="touch" type="checkbox" checked></label>
+              <label class="row">Finish cue <input name="finish" type="checkbox" checked></label>
+              <p class="hint">Your browser may pause audio or vibration when the screen locks.</p>
+            </fieldset>
+            <fieldset class="settings-group" id="custom-voice" hidden>
+              <legend>Custom voice commands</legend>
+              <label class="row">Active <input name="goWord" type="text" maxlength="36" value="Go"></label>
+              <label class="row">Rest <input name="restWord" type="text" maxlength="36" value="Rest"></label>
+              <p class="hint">Custom commands use an English voice from your browser when available.</p>
+            </fieldset>
+            <fieldset class="settings-group">
+              <legend>Display</legend>
+              <div class="row"><label for="theme">Appearance</label><select id="theme" name="theme"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+            </fieldset>
+          </div>
+        </details>
         <p id="settings-error" class="form-error" role="alert" hidden></p>
         <button class="primary" type="submit" data-touch="confirmation">Done</button>
       </form>
