@@ -1,0 +1,90 @@
+:root {
+  color-scheme: dark;
+  --bg: #141612;
+  --panel: #1d211a;
+  --ink: #f6f8f0;
+  --muted: #c6cdbf;
+  --line: #525b4c;
+  --go: #d3f86a;
+  --rest: #90e7eb;
+  --button: #d3f86a;
+  --button-ink: #182011;
+  font: 100%/1.5 system-ui, sans-serif;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #edf0e8;
+  --panel: #ffffff;
+  --ink: #1c251a;
+  --muted: #465340;
+  --line: #747e70;
+  --go: #365600;
+  --rest: #005964;
+  --button: #283f0c;
+  --button-ink: #ffffff;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="auto"] {
+    color-scheme: light;
+    --bg: #edf0e8;
+    --panel: #ffffff;
+    --ink: #1c251a;
+    --muted: #465340;
+    --line: #747e70;
+    --go: #365600;
+    --rest: #005964;
+    --button: #283f0c;
+    --button-ink: #ffffff;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); }
+button, input, select { font: inherit; }
+button, select { cursor: pointer; }
+button, input, select { min-height: 46px; }
+:focus-visible { outline: 3px solid var(--rest); outline-offset: 4px; }
+.shell { width: min(100% - 2rem, 44rem); margin: clamp(1rem, 7vh, 5rem) auto; }
+.heading, .brand, .row, .favorites { display: flex; align-items: center; gap: .8rem; }
+.heading { justify-content: space-between; margin-bottom: 1.25rem; }
+h1 { font-size: clamp(1.25rem, 4vw, 1.75rem); margin: 0; line-height: 1.15; }
+h2 { margin: 0 0 1rem; }
+.surface, dialog { background: var(--panel); border: 1px solid var(--line); border-radius: 1.3rem; padding: clamp(1rem, 4vw, 2rem); }
+.intervals { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: clamp(.5rem, 2vw, 1rem); }
+fieldset { min-width: 0; margin: 0; border: 1px solid var(--line); border-radius: .8rem; }
+.interval { padding: .35rem clamp(.25rem, 2vw, 1rem) .75rem; }
+legend, .phase { font-weight: 750; text-transform: uppercase; letter-spacing: .08em; font-size: .875rem; }
+.active, [data-phase="active"] .phase { color: var(--go); }
+.rest, [data-phase="rest"] .phase { color: var(--rest); }
+.duration { display: flex; align-items: start; justify-content: center; gap: .15rem; font-size: clamp(1.25rem, 5vw, 2.65rem); font-weight: 750; }
+.duration label { flex: 1; text-align: center; min-width: 0; }
+.duration input { width: 100%; text-align: center; padding: .1rem .05rem; color: var(--ink); }
+.duration small { display: block; font-size: .875rem; color: var(--muted); }
+.duration span[aria-hidden] { padding-top: .05rem; }
+input[type="number"] { appearance: textfield; }
+input::-webkit-inner-spin-button, input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+input, select, .quiet { color: var(--ink); background: var(--bg); padding: .45rem .7rem; border: 1px solid var(--line); border-radius: .6rem; }
+input[type="checkbox"], input[type="range"] { accent-color: var(--go); }
+input[type="checkbox"] { width: 1.3rem; margin: 0; }
+input[type="number"] { width: 5rem; font-variant-numeric: tabular-nums; }
+.duration input[type="number"] { width: 100%; }
+.row { min-height: 3.5rem; flex-wrap: wrap; justify-content: space-between; }
+.rounds { margin-top: .85rem; justify-content: flex-start; }
+.rounds > label:first-child { margin-right: auto; }
+.toggle { display: flex; align-items: center; gap: .4rem; }
+.activity { margin-bottom: 1rem; }
+.primary { width: 100%; border: 0; border-radius: .75rem; padding: .7rem 1rem; min-height: 3.5rem; background: var(--button); color: var(--button-ink); font-size: 1.2rem; font-weight: 800; }
+.favorites { flex-wrap: wrap; margin-top: 1rem; }
+.favorites select { max-width: 100%; flex: 1; }
+.workout { text-align: center; }
+.phase { font-size: 1.15rem; }
+.time { font-size: clamp(2.5rem, 13vw, 7rem); line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
+.round-info { color: var(--muted); min-height: 1.5rem; }
+progress { display: block; width: 100%; height: .55rem; margin: 1.5rem 0; accent-color: var(--go); }
+[data-phase="rest"] progress { accent-color: var(--rest); }
+.workout-controls { display: grid; grid-template-columns: 2fr 1fr; gap: .8rem; }
+dialog { color: var(--ink); width: min(100% - 2rem, 33rem); max-height: 90dvh; }
+dialog::backdrop { background: #0b100bcc; }
+dialog input[type="text"] { max-width: 12rem; width: 100%; }
+.hint { color: var(--muted); font-size: .95rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

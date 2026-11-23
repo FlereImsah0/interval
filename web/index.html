@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141612">
+  <meta name="description" content="A simple, offline interval timer for training.">
+  <title>Interval Timer</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.mjs" type="module"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="heading">
+      <div class="brand"><img src="./icon.svg" alt="" width="34" height="34"><h1>Interval Timer</h1></div>
+      <button id="settings-button" type="button" class="quiet">Settings</button>
+    </header>
+    <form id="setup" class="surface">
+      <div class="intervals">
+        <fieldset class="interval active">
+          <legend>Active</legend>
+          <div class="duration">
+            <label><span class="sr-only">Active minutes</span><input name="activeMinutes" type="number" inputmode="numeric" min="0" max="599" required value="0"> <small>MIN</small></label>
+            <span aria-hidden="true">:</span>
+            <label><span class="sr-only">Active seconds</span><input name="activeSeconds" type="number" inputmode="numeric" min="0" max="59" required value="30"> <small>SEC</small></label>
+          </div>
+        </fieldset>
+        <fieldset class="interval rest">
+          <legend>Rest</legend>
+          <div class="duration">
+            <label><span class="sr-only">Rest minutes</span><input name="restMinutes" type="number" inputmode="numeric" min="0" max="599" required value="0"> <small>MIN</small></label>
+            <span aria-hidden="true">:</span>
+            <label><span class="sr-only">Rest seconds</span><input name="restSeconds" type="number" inputmode="numeric" min="0" max="59" required value="10"> <small>SEC</small></label>
+          </div>
+        </fieldset>
+      </div>
+      <div class="row rounds">
+        <label for="rounds">Rounds</label>
+        <input id="rounds" name="rounds" type="number" inputmode="numeric" min="1" max="9999" required value="10">
+        <label class="toggle"><input name="unlimited" type="checkbox"> Unlimited</label>
+      </div>
+      <div class="row activity">
+        <label for="mode">Activity</label>
+        <select id="mode" name="mode">
+          <option value="general">General</option><option value="running">Running</option><option value="swimming">Swimming</option>
+          <option value="stretching">Yoga / Stretching</option><option value="hiit">HIIT / Gym</option><option value="custom">Custom</option>
+        </select>
+      </div>
+      <button type="submit" class="primary">Start</button>
+      <div class="favorites" aria-label="Favorites">
+        <select id="favorite" aria-label="Favorite workout"><option value="">Favorites</option></select>
+        <button id="save-favorite" type="button" class="quiet">Save workout</button>
+        <button id="delete-favorite" type="button" class="quiet" hidden>Remove</button>
+      </div>
+      <p class="sr-only" role="status" id="favorite-status"></p>
+    </form>
+    <section id="workout" class="surface workout" data-phase="ready" hidden aria-label="Workout">
+      <div id="phase" class="phase" role="status" aria-live="polite">Get ready</div>
+      <div id="time" class="time" role="timer" aria-live="off">00:00</div>
+      <div id="round-info" class="round-info"></div>
+      <progress id="progress" max="1" value="0" aria-label="Current interval progress"></progress>
+      <div class="workout-controls">
+        <button id="pause" class="primary" type="button">Pause</button>
+        <button id="stop" class="quiet" type="button">Stop</button>
+      </div>
+    </section>
+  </main>
+  <dialog id="settings" aria-labelledby="settings-title">
+    <form method="dialog" id="preferences">
+      <h2 id="settings-title">Settings</h2>
+      <label class="row">Appearance <select name="theme"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+      <label class="row">Preparation (seconds) <input name="prep" type="number" min="0" max="60" inputmode="numeric" value="0" required></label>
+      <label class="row">Advance warning <select name="warning"><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="countdown">3–2–1</option><option value="custom">Custom</option></select></label>
+      <label class="row" id="custom-warning" hidden>Warning (seconds) <input name="warningSeconds" type="number" min="1" max="60" inputmode="numeric" value="10" required></label>
+      <label class="row">Sound <input name="sound" type="checkbox" checked></label>
+      <label class="row">Tone volume <input name="volume" type="range" min="0" max="100" value="65"></label>
+      <label class="row" id="voice-setting">Voice <input name="voice" type="checkbox"></label>
+      <label class="row" id="vibration-setting">Vibration <input name="vibration" type="checkbox"></label>
+      <label class="row" id="vibration-pattern">Vibration pattern <select name="pattern"><option value="activity">Match activity</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></label>
+      <label class="row">Finish cue <input name="finish" type="checkbox" checked></label>
+      <label class="row" id="wake-setting">Keep screen awake <input name="awake" type="checkbox" checked></label>
+      <fieldset id="custom-voice"><legend>Custom voice commands</legend>
+        <label class="row">Active <input name="goWord" type="text" maxlength="36" value="Go"></label>
+        <label class="row">Rest <input name="restWord" type="text" maxlength="36" value="Rest"></label>
+      </fieldset>
+      <p class="hint">Keep the timer visible for cues. Your browser may pause sound or vibration when the screen locks.</p>
+      <button class="primary" type="submit">Done</button>
+    </form>
+  </dialog>
+</body>
+</html>
