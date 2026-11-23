@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f3f5f3">
+  <meta name="theme-color" content="#f3f5f3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111c1a" media="(prefers-color-scheme: dark)">
   <meta name="description" content="A simple, offline interval timer for training.">
   <title>Interval Timer</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
@@ -14,14 +15,15 @@
 <body>
   <header class="heading">
     <div class="header-inner">
-      <div class="brand"><img src="./icon.svg" alt="" width="36" height="36"><h1>Interval Timer</h1></div>
-      <button id="settings-button" type="button" class="quiet settings-button"><span class="gear" aria-hidden="true">⚙</span> Settings</button>
+      <button id="back-button" type="button" class="quiet back-button" data-touch="navigation" hidden><span class="back-arrow" aria-hidden="true"></span> Back</button>
+      <div class="brand"><img src="./icon.svg" alt="" width="34" height="34" draggable="false"><h1>Interval Timer</h1></div>
+      <button id="settings-button" type="button" class="quiet settings-button" data-touch="navigation"><span class="gear" aria-hidden="true">⚙</span> Settings</button>
     </div>
   </header>
-  <main class="shell">
-    <form id="setup">
+  <main class="shell" id="main">
+    <form id="setup" novalidate>
       <div class="setup-heading">
-        <h2>Workout setup</h2>
+        <h2 id="setup-title" tabindex="-1">Workout setup</h2>
         <output id="workout-summary" aria-live="off" class="summary">6 min 30 sec total</output>
       </div>
       <div class="intervals">
@@ -37,7 +39,6 @@
             </div>
             <button type="button" class="step" data-adjust="active" data-delta="5" aria-label="Increase active time by five seconds">+</button>
           </div>
-          <div class="duration-caption" aria-hidden="true">MIN <span>SEC</span></div>
         </fieldset>
         <fieldset class="interval rest">
           <legend class="sr-only">Rest interval</legend>
@@ -51,7 +52,6 @@
             </div>
             <button type="button" class="step" data-adjust="rest" data-delta="5" aria-label="Increase rest time by five seconds">+</button>
           </div>
-          <div class="duration-caption" aria-hidden="true">MIN <span>SEC</span></div>
         </fieldset>
       </div>
       <div class="options">
@@ -74,50 +74,64 @@
           </select>
         </div>
       </div>
-      <button type="submit" class="primary start"><span class="play" aria-hidden="true"></span> Start workout</button>
+      <p id="setup-error" class="form-error" role="alert" hidden></p>
+      <button type="submit" class="primary start" data-touch="confirmation"><span class="play" aria-hidden="true"></span><span id="start-label">Start workout</span></button>
+      <button type="button" id="end-paused" class="quiet" hidden>End paused workout</button>
       <div class="favorites" aria-label="Favorites">
         <select id="favorite" aria-label="Favorite workout" hidden><option value="">Favorites</option></select>
-        <button id="save-favorite" type="button" class="quiet"><span aria-hidden="true">☆</span> Save workout</button>
+        <button id="save-favorite" type="button" class="quiet" data-touch="confirmation"><span aria-hidden="true">☆</span> Save workout</button>
         <button id="delete-favorite" type="button" class="quiet" hidden>Remove</button>
       </div>
-      <p class="sr-only" role="status" id="favorite-status"></p>
+      <p class="notice" role="status" id="favorite-status"></p>
     </form>
     <section id="workout" class="workout" data-phase="ready" hidden aria-label="Workout">
       <div class="dial" id="dial">
         <div class="dial-face">
-          <div id="phase" class="phase" role="status" aria-live="polite">Get ready</div>
+          <div id="phase" class="phase" tabindex="-1" role="status" aria-live="polite">Get ready</div>
           <div id="time" class="time" role="timer" aria-live="off">00:00</div>
           <div id="round-info" class="round-info"></div>
         </div>
       </div>
       <progress id="progress" class="sr-only" max="1" value="0" aria-label="Current interval progress"></progress>
       <div class="workout-controls">
-        <button id="stop" class="quiet" type="button">Stop</button>
-        <button id="pause" class="primary" type="button">Pause</button>
+        <button id="stop" class="quiet" type="button" data-touch="navigation">End workout</button>
+        <button id="pause" class="primary" type="button" data-touch="confirmation">Pause</button>
       </div>
     </section>
+    <section id="settings" aria-labelledby="settings-title" hidden>
+      <h2 id="settings-title" tabindex="-1">Settings</h2>
+      <form id="preferences" novalidate>
+        <fieldset class="settings-group">
+          <legend>Workout</legend>
+          <div class="row"><label for="prep">Preparation (seconds)</label><input id="prep" name="prep" type="number" min="0" max="60" inputmode="numeric" value="0" required></div>
+          <div class="row"><label for="warning">Advance warning</label><select id="warning" name="warning"><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="countdown">3–2–1</option><option value="custom">Custom</option></select></div>
+          <div class="row" id="custom-warning" hidden><label for="warning-seconds">Warning (seconds)</label><input id="warning-seconds" name="warningSeconds" type="number" min="1" max="60" inputmode="numeric" value="10" required></div>
+          <label class="row" id="wake-setting">Keep screen awake <input name="awake" type="checkbox" checked></label>
+        </fieldset>
+        <fieldset class="settings-group">
+          <legend>Sound and feedback</legend>
+          <label class="row">Sound <input name="sound" type="checkbox" checked></label>
+          <label class="row">Tone volume <input name="volume" type="range" min="0" max="100" value="65"></label>
+          <label class="row" id="voice-setting">Voice <input name="voice" type="checkbox"></label>
+          <label class="row" id="vibration-setting">Workout vibration <input name="vibration" type="checkbox"></label>
+          <div class="row" id="vibration-pattern"><label for="pattern">Vibration pattern</label><select id="pattern" name="pattern"><option value="activity">Match activity</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></div>
+          <label class="row" id="touch-setting">Touch feedback <input name="touch" type="checkbox" checked></label>
+          <label class="row">Finish cue <input name="finish" type="checkbox" checked></label>
+          <p class="hint">Keep the timer visible for cues. Your browser may pause sound or vibration when the screen locks.</p>
+        </fieldset>
+        <fieldset class="settings-group" id="custom-voice">
+          <legend>Custom voice commands</legend>
+          <label class="row">Active <input name="goWord" type="text" maxlength="36" value="Go"></label>
+          <label class="row">Rest <input name="restWord" type="text" maxlength="36" value="Rest"></label>
+        </fieldset>
+        <fieldset class="settings-group">
+          <legend>Display</legend>
+          <div class="row"><label for="theme">Appearance</label><select id="theme" name="theme"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+        </fieldset>
+        <p id="settings-error" class="form-error" role="alert" hidden></p>
+        <button class="primary" type="submit" data-touch="confirmation">Done</button>
+      </form>
+    </section>
   </main>
-  <dialog id="settings" aria-labelledby="settings-title">
-    <form method="dialog" id="preferences">
-      <h2 id="settings-title">Settings</h2>
-      <label class="row">Appearance <select name="theme"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-      <label class="row">Preparation (seconds) <input name="prep" type="number" min="0" max="60" inputmode="numeric" value="0" required></label>
-      <label class="row">Advance warning <select name="warning"><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="countdown">3–2–1</option><option value="custom">Custom</option></select></label>
-      <label class="row" id="custom-warning" hidden>Warning (seconds) <input name="warningSeconds" type="number" min="1" max="60" inputmode="numeric" value="10" required></label>
-      <label class="row">Sound <input name="sound" type="checkbox" checked></label>
-      <label class="row">Tone volume <input name="volume" type="range" min="0" max="100" value="65"></label>
-      <label class="row" id="voice-setting">Voice <input name="voice" type="checkbox"></label>
-      <label class="row" id="vibration-setting">Vibration <input name="vibration" type="checkbox"></label>
-      <label class="row" id="vibration-pattern">Vibration pattern <select name="pattern"><option value="activity">Match activity</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></label>
-      <label class="row">Finish cue <input name="finish" type="checkbox" checked></label>
-      <label class="row" id="wake-setting">Keep screen awake <input name="awake" type="checkbox" checked></label>
-      <fieldset id="custom-voice"><legend>Custom voice commands</legend>
-        <label class="row">Active <input name="goWord" type="text" maxlength="36" value="Go"></label>
-        <label class="row">Rest <input name="restWord" type="text" maxlength="36" value="Rest"></label>
-      </fieldset>
-      <p class="hint">Keep the timer visible for cues. Your browser may pause sound or vibration when the screen locks.</p>
-      <button class="primary" type="submit">Done</button>
-    </form>
-  </dialog>
 </body>
 </html>
