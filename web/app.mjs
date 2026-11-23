@@ -48,7 +48,7 @@ let lastElapsed = -1;
 let audio = null;
 let wake = null;
 let wakePending = false;
-let screen = 'setup';
+let screen = null;
 let returning = false;
 let setupScroll = 0;
 let sessionMode = 'general';
@@ -676,7 +676,7 @@ function showScreen(next) {
   refreshHeader();
   const target = next === 'setup'
     ? (previous === 'settings' ? settingsButton : setup.querySelector('.start')) : headings[next];
-  target.focus({ preventScroll: true });
+  if (previous || next !== 'setup') target.focus({ preventScroll: true });
 }
 
 function openScreen(next) {
@@ -832,6 +832,7 @@ if (recognized && history.state?.intervalScreen === direct && history.state?.int
     if (!seen) openScreen('welcome');
   }
 }
+if (!screen) showScreen('setup');
 if (android) {
   const overlay = byId('android-overlay');
   overlay.closest('label').hidden = false;

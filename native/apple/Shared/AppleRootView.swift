@@ -40,14 +40,14 @@ struct AppleRootView: View {
             case .welcome:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Find your workout rhythm").font(.headline)
-                        Text("Pick a time to move, a time to rest, and the number of rounds. The timer tells you when to switch.")
-                        HStack {
-                            sample("Active", time: "00:30", color: .green)
-                            sample("Rest", time: "00:10", color: .blue)
-                        }
-                        .accessibilityLabel("Example: 30 seconds active, 10 seconds rest, then repeat")
-                        Text("Choose tones or a spoken countdown. You can also turn on vibration.")
+                        Image("welcome-runner.jpg", bundle: .main)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .accessibilityLabel("Runner training on a blue track at dusk")
+                        Text("A timer for interval training").font(.headline)
+                        Text("Set how long to move, how long to rest, and how many rounds to repeat.")
+                        Text("A tone or spoken countdown tells you when to switch.")
                         Button("Set up a workout") { goHome() }
                             .buttonStyle(.borderedProminent)
                     }
@@ -91,16 +91,6 @@ struct AppleRootView: View {
             .labelStyle(.iconOnly)
             #endif
             .accessibilityLabel(title)
-    }
-
-    private func sample(_ name: String, time: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(name).font(.caption.bold())
-            Text(time).font(.headline.monospacedDigit())
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
-        .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func legal(_ title: String, copy: [String]) -> some View {

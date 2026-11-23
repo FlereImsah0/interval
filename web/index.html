@@ -45,7 +45,7 @@
     </div>
   </header>
   <main class="shell" id="main">
-    <form id="setup" novalidate>
+    <form id="setup" novalidate hidden>
       <div class="setup-heading">
         <h2 id="setup-title" tabindex="-1">Workout setup</h2>
         <output id="workout-summary" aria-live="off" class="summary">6 min 30 sec total</output>
@@ -187,13 +187,13 @@
       </nav>
     </section>
     <section id="welcome" class="welcome-screen" aria-labelledby="welcome-title" hidden>
-      <h2 id="welcome-title" tabindex="-1">Find your workout rhythm</h2>
-      <p class="welcome-copy">Pick how long to move, how long to rest and how many rounds. Interval Timer tells you when it’s time to switch.</p>
-      <div class="welcome-preview" role="img" aria-label="Example: 30 seconds active, 10 seconds rest, then repeat">
-        <div class="preview-interval preview-active"><span>Active</span><strong>00:30</strong><div class="preview-bar"></div></div>
-        <div class="preview-interval preview-rest"><span>Rest</span><strong>00:10</strong><div class="preview-bar"></div></div>
+      <img class="welcome-photo" src="./welcome-runner.jpg" width="1200" height="800"
+        alt="Runner training on a blue track at dusk" draggable="false">
+      <div class="welcome-intro">
+        <h2 id="welcome-title" tabindex="-1">A timer for interval training</h2>
+        <p class="welcome-copy">Set how long to move, how long to rest, and how many rounds to repeat.</p>
+        <p class="welcome-copy">A tone or spoken countdown tells you when to switch.</p>
       </div>
-      <p class="welcome-copy">Choose tones or a spoken countdown. Turn on vibration if your device supports it.</p>
       <button id="welcome-start" type="button" class="primary" data-touch="confirmation">Set up a workout</button>
     </section>
     <section id="terms" class="legal-screen" aria-labelledby="terms-title" hidden>
