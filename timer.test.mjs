@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { durationParts, limitIntervalSeconds, maxRoundSeconds, phaseAt, secondsFromDuration, Workout, warningAt } from './web/timer.mjs';
+import { durationParts, limitIntervalSeconds, maxRoundSeconds, phaseAt, roundOverageSeconds, secondsFromDuration, Workout, warningAt } from './web/timer.mjs';
 
 const plan = { active: 1000, rest: 1000, rounds: 10000, prep: 3000 };
 
@@ -51,9 +51,12 @@ test('duration entry carries minutes and seconds into the next unit', () => {
   assert.deepEqual(durationParts(secondsFromDuration(1, 59, 60)), [2, 0, 0]);
 });
 
-test('a round never exceeds 24 hours including recovery', () => {
-  assert.deepEqual(durationParts(limitIntervalSeconds(secondsFromDuration(24, 94, 0), 0)), [24, 0, 0]);
-  assert.equal(limitIntervalSeconds(maxRoundSeconds + 1, 1), maxRoundSeconds - 1);
-  assert.equal(limitIntervalSeconds(maxRoundSeconds, 300) + 300, maxRoundSeconds);
-  assert.equal(limitIntervalSeconds(-1, 0), 0);
+test('time fields keep 59 seconds even if the combined round is too long', () => {
+  const active = secondsFromDuration(23, 59, 59);
+  assert.deepEqual(durationParts(limitIntervalSeconds(active)), [23, 59, 59]);
+  assert.equal(roundOverageSeconds(active, 12), 11);
+  assert.equal(roundOverageSeconds(active, 1), 0);
+  assert.equal(roundOverageSeconds(maxRoundSeconds, 1), 1);
+  assert.deepEqual(durationParts(limitIntervalSeconds(secondsFromDuration(24, 94, 0))), [24, 0, 0]);
+  assert.equal(limitIntervalSeconds(-1), 0);
 });

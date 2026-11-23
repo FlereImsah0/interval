@@ -8,9 +8,12 @@ export function durationParts(seconds) {
   return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60];
 }
 
-export function limitIntervalSeconds(seconds, otherSeconds) {
-  const budget = maxRoundSeconds - Math.max(0, otherSeconds);
-  return Math.max(0, Math.min(seconds, budget));
+export function limitIntervalSeconds(seconds) {
+  return Math.max(0, Math.min(seconds, maxRoundSeconds));
+}
+
+export function roundOverageSeconds(active, rest) {
+  return Math.max(0, active + rest - maxRoundSeconds);
 }
 
 export function phaseAt(plan, elapsed) {

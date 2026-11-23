@@ -1,4 +1,4 @@
-import { Workout, durationParts, limitIntervalSeconds, maxRoundSeconds, secondsFromDuration, warningAt } from './timer.mjs';
+import { Workout, durationParts, limitIntervalSeconds, roundOverageSeconds, secondsFromDuration, warningAt } from './timer.mjs';
 import { VoicePlayer } from './voice.mjs';
 
 const byId = (id) => document.getElementById(id);
@@ -107,18 +107,13 @@ function durationEntries(kind, seconds) {
 
 function normalizeSavedDurations(config) {
   if (!config) return;
-  const active = limitIntervalSeconds(intervalSeconds('active', config), 0);
-  const rest = limitIntervalSeconds(intervalSeconds('rest', config), Math.max(1, active));
+  const active = limitIntervalSeconds(intervalSeconds('active', config));
+  const rest = limitIntervalSeconds(intervalSeconds('rest', config));
   Object.assign(config, durationEntries('active', active), durationEntries('rest', rest));
 }
 
 function setIntervalDuration(kind, seconds) {
-  const other = kind === 'active' ? intervalSeconds('rest') : Math.max(1, intervalSeconds('active'));
-  const bounded = limitIntervalSeconds(seconds, other);
-  apply(setup, durationEntries(kind, bounded));
-  if (seconds > bounded) {
-    byId('round-limit').textContent = 'A round can last up to 24 hours, including rest.';
-  }
+  apply(setup, durationEntries(kind, limitIntervalSeconds(seconds)));
 }
 
 function load() {
@@ -184,13 +179,21 @@ function planFromSetup() {
 function updateSummary() {
   const { active, rest, rounds, prep } = planFromSetup();
   const summary = byId('workout-summary');
+  const overage = roundOverageSeconds(active / 1000, rest / 1000);
+  setText(byId('round-limit'), overage
+    ? 'Shorten active time or rest by ' + formatTime(overage) + ' to stay within 24 hours per round.'
+    : '');
+  if (overage) {
+    summary.textContent = 'Round exceeds 24 hours';
+    return;
+  }
   if (rounds === Infinity) {
     summary.textContent = 'Unlimited workout';
     return;
   }
   const seconds = (prep + active * rounds + rest * (rounds - 1)) / 1000;
   if (![...durationNames, 'rounds'].every((name) => field(name).validity.valid) ||
-      !Number.isFinite(seconds) || active < 1000 || active + rest > maxRoundSeconds * 1000 || rounds < 1) {
+      !Number.isFinite(seconds) || active < 1000 || rounds < 1) {
     summary.textContent = 'Total time unavailable';
     return;
   }
@@ -241,8 +244,11 @@ function checkSetup() {
     return showError(setup, error, field(invalidTime), 'Enter up to two digits in each time field.');
   }
   const { active, rest } = planFromSetup();
-  if (active + rest > maxRoundSeconds * 1000) {
-    return showError(setup, error, field('activeHours'), 'Active time and rest can total up to 24 hours per round.');
+  if (roundOverageSeconds(active / 1000, rest / 1000)) {
+    clearError(setup, error);
+    updateSummary();
+    byId('round-limit').focus();
+    return false;
   }
   if (active < 1000) {
     return showError(setup, error, field('activeSeconds'), 'Set an active interval of at least one second.');
@@ -301,7 +307,6 @@ favoriteList.addEventListener('click', (event) => {
   if (!button) return;
   const index = Number(button.dataset.favorite);
   apply(setup, favorites[index].config);
-  byId('round-limit').textContent = '';
   updateFavorites(index);
   clearError(setup, byId('setup-error'));
   updateSettings();
@@ -334,7 +339,6 @@ setup.addEventListener('input', (event) => {
   const input = event.target;
   const kind = input.dataset.interval;
   if (kind) {
-    byId('round-limit').textContent = '';
     input.value = input.value.replace(/[^0-9]/g, '').slice(0, 2);
     if (input.value.length === 2) setIntervalDuration(kind, intervalSeconds(kind));
   }
@@ -361,7 +365,6 @@ setup.addEventListener('click', (event) => {
     const rounds = Number(field('rounds').value) || 1;
     field('rounds').value = Math.max(1, Math.min(9999, rounds + Number(delta)));
   } else {
-    byId('round-limit').textContent = '';
     const minimum = adjust === 'active' ? 1 : 0;
     setIntervalDuration(adjust, Math.max(minimum, intervalSeconds(adjust) + Number(delta)));
   }
