@@ -19,13 +19,22 @@ struct AppleRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Image("icon-192.png", bundle: .main)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 38, height: 38)
-                .accessibilityLabel("Interval Timer")
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
+            HStack(spacing: 6) {
+                Image("icon-192.png", bundle: .main)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 34, height: 34)
+                    .accessibilityHidden(true)
+                Text("INTERVAL TIMER")
+                    .font(.custom("BarlowCondensed-Bold", size: 22, relativeTo: .title3))
+                    .tracking(1)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
 
             page
                 .id(path.last)

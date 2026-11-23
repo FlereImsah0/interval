@@ -120,9 +120,17 @@ button:active:not(:disabled) { transform: scale(.96); }
   padding-left: max(1rem, env(safe-area-inset-left));
   padding-right: max(1rem, env(safe-area-inset-right));
 }
-.header-inner { display: grid; place-items: center; min-height: 3.75rem; }
-.brand { margin: 0; line-height: 0; }
-.brand img { display: block; -webkit-user-drag: none; }
+.header-inner { display: flex; align-items: center; min-height: 3.75rem; }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  margin: 0;
+  font: 700 clamp(1.45rem, 5.5vw, 1.85rem)/1 var(--display);
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+.brand img { display: block; flex: none; -webkit-user-drag: none; }
 .bottom-nav {
   position: fixed;
   z-index: 3;
