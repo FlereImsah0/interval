@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { VoicePlayer } from './web/voice.mjs';
 
-test('recorded voice cues play without an installed browser voice', async (t) => {
+test('recorded voice cues can play in a hidden tab without an installed browser voice', async (t) => {
   const played = [];
   const requests = [];
   t.mock.method(globalThis, 'fetch', async (url) => {
@@ -14,7 +14,7 @@ test('recorded voice cues play without an installed browser voice', async (t) =>
     return { ok: true, arrayBuffer: async () => data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) };
   });
   const oldDocument = globalThis.document;
-  globalThis.document = { hidden: false };
+  globalThis.document = { hidden: true };
   t.after(() => { globalThis.document = oldDocument; });
 
   const gain = { gain: {}, connect() {} };
@@ -39,4 +39,7 @@ test('recorded voice cues play without an installed browser voice', async (t) =>
   assert.deepEqual(requests, ['go.wav', 'rest.wav']);
   assert.deepEqual(played, ['start', 'stop', 'start']);
   assert.equal(gain.gain.value, 1);
+
+  await voice.play('3', undefined, 0);
+  assert.deepEqual(played, ['start', 'stop', 'start', 'stop']);
 });

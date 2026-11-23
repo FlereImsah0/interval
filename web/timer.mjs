@@ -59,14 +59,14 @@ export class Workout {
   }
 }
 
-export function warningAt(phase, warning, previous) {
+export function warningAt(phase, warning, previous, maxLateness = 300) {
   if (phase.kind === 'complete' || phase.paused) return null;
   const offsets = warning === 'countdown' ? [1, 2, 3] : [Number(warning)];
   for (const seconds of offsets) {
     if (!seconds) continue;
     const threshold = phase.end - seconds * 1000;
     const insidePhase = threshold > phase.start || (warning === 'countdown' && threshold === phase.start);
-    if (insidePhase && previous < threshold && phase.elapsed >= threshold && phase.elapsed - threshold <= 300) {
+    if (insidePhase && previous < threshold && phase.elapsed >= threshold && phase.elapsed - threshold <= maxLateness) {
       return { seconds, spoken: warning === 'countdown' ? String(seconds) : null };
     }
   }

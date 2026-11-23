@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f3f5f3" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#111c1a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#0c1018" media="(prefers-color-scheme: dark)">
   <meta name="description" content="A simple, offline interval timer for training.">
   <title>Interval Timer</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
@@ -81,7 +81,7 @@
       </div>
       <p id="setup-error" class="form-error" role="alert" hidden></p>
       <button type="submit" class="primary start" data-touch="confirmation"><span class="play" aria-hidden="true"></span><span id="start-label">Start workout</span></button>
-      <button type="button" id="end-paused" class="quiet" hidden>End paused workout</button>
+      <button type="button" id="end-from-setup" class="quiet" hidden>End workout</button>
       <div class="favorites" aria-label="Favorites">
         <details id="favorite-picker" class="favorite-picker" hidden>
           <summary id="favorite-toggle"><span class="favorite-heading"><span aria-hidden="true">☆</span> Favorites <span id="favorite-count" class="favorite-count"></span></span><span class="favorite-chevron" aria-hidden="true"></span></summary>
@@ -113,10 +113,11 @@
       <form id="preferences" novalidate>
         <fieldset class="settings-group">
           <legend>Workout cues</legend>
-          <div class="audio-options" aria-describedby="audio-description">
+          <fieldset class="audio-options" aria-describedby="audio-description">
+            <legend class="sr-only">Audio mode</legend>
             <label><input type="radio" name="audioMode" value="sound" checked><span>Sound</span></label>
             <label><input type="radio" name="audioMode" value="voice"><span>Voice</span></label>
-          </div>
+          </fieldset>
           <p class="hint" id="audio-description">Tones at interval changes.</p>
           <label class="row" id="vibration-setting">Vibration <input name="vibration" type="checkbox" checked></label>
         </fieldset>
@@ -137,7 +138,6 @@
               <div class="row" id="vibration-pattern"><label for="pattern">Vibration pattern</label><select id="pattern" name="pattern"><option value="activity">Three short / one long</option><option value="short">Short pulse</option><option value="double">Double pulse</option><option value="long">Long pulse</option></select></div>
               <label class="row" id="touch-setting">Touch feedback <input name="touch" type="checkbox" checked></label>
               <label class="row">Finish cue <input name="finish" type="checkbox" checked></label>
-              <p class="hint">Your browser may pause audio or vibration when the screen locks.</p>
             </fieldset>
             <fieldset class="settings-group" id="custom-voice" hidden>
               <legend>Custom voice commands</legend>

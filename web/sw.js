@@ -1,14 +1,22 @@
-const cacheName = 'interval-timer-v11';
+const cacheName = 'interval-timer-v12';
 const recordings = ['ready', 'go', 'rest', 'run', 'walk', 'hold', 'relax', 'complete', 'next',
   'one', 'two', 'three', 'three-seconds', 'five-seconds'];
 const shell = ['./index.html', './style.css', './app.mjs', './timer.mjs', './voice.mjs', './icon.svg',
   './manifest.webmanifest', ...recordings.map((name) => './voice/' + name + '.wav')];
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(shell)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(cacheName);
+    await cache.addAll(shell.map((url) => new Request(url, { cache: 'reload' })));
+    await self.skipWaiting();
+  })());
 });
 self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((name) =>
-    name.startsWith('interval-timer-') && name !== cacheName).map((name) => caches.delete(name)))));
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((name) =>
+      name.startsWith('interval-timer-') && name !== cacheName).map((name) => caches.delete(name)));
+    await self.clients.claim();
+  })());
 });
 self.addEventListener('fetch', (event) => {
   const request = event.request;

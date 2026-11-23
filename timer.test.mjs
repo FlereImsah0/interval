@@ -68,3 +68,10 @@ test('spoken countdown starts at the phase boundary for short intervals', () => 
   assert.deepEqual(warningAt({ ...phase, end: 2000 }, 'countdown', 999), { seconds: 1, spoken: '1' });
   assert.equal(warningAt(phase, 3, 999), null);
 });
+
+test('a delayed callback can deliver the current countdown digit without replaying older ones', () => {
+  const phase = { kind: 'active', start: 0, end: 20_000, elapsed: 18_750 };
+  assert.equal(warningAt(phase, 'countdown', 16_000), null);
+  assert.deepEqual(warningAt(phase, 'countdown', 16_000, 950), { seconds: 2, spoken: '2' });
+  assert.equal(warningAt(phase, 'countdown', 18_001, 950), null);
+});

@@ -13,7 +13,7 @@ const favoriteList = byId('favorite-list');
 const favoriteToggle = byId('favorite-toggle');
 const settingsButton = byId('settings-button');
 const backButton = byId('back-button');
-const endPaused = byId('end-paused');
+const endFromSetup = byId('end-from-setup');
 const screens = { setup, settings, workout };
 const headings = { setup: byId('setup-title'), settings: byId('settings-title'), workout: byId('phase') };
 const themeQuery = matchMedia('(prefers-color-scheme: dark)');
@@ -69,7 +69,7 @@ function apply(form, entries) {
 const preferenceNames = [...new Set([...preferences.elements].map((field) => field.name).filter(Boolean))];
 const pref = (name) => preferences.elements.namedItem(name);
 const field = (name) => setup.elements.namedItem(name);
-const audioMode = () => pref('audioMode').value;
+const audioMode = () => pref('audioMode').value === 'voice' ? 'voice' : 'sound';
 const audioVolume = () => Number(pref('volume').value) / 100;
 const voicePlayer = new VoicePlayer(() => audio, audioVolume);
 
@@ -120,7 +120,7 @@ function load() {
       storedPreferences.volume = '100';
       storedPreferences.vibration = true;
     }
-    if (storedPreferences && !storedPreferences.audioMode) {
+    if (storedPreferences && !['sound', 'voice', 'silent'].includes(storedPreferences.audioMode)) {
       storedPreferences.audioMode = storedPreferences.voice ? 'voice'
         : storedPreferences.sound === false ? 'silent' : 'sound';
     }
@@ -146,7 +146,7 @@ function updateSettings() {
   document.documentElement.dataset.theme = theme;
   const dark = theme === 'dark' || (theme === 'auto' && themeQuery.matches);
   document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
-    meta.content = dark ? '#111c1a' : '#f3f5f3';
+    meta.content = dark ? '#0c1018' : '#f3f5f3';
   });
   const unlimited = field('unlimited').checked;
   field('rounds').disabled = unlimited;
@@ -158,7 +158,7 @@ function updateSettings() {
   byId('custom-warning').hidden = !customWarning;
   pref('warningSeconds').disabled = !customWarning;
   setText(byId('audio-description'), voice ? 'Spoken 3–2–1 countdown.' : 'Tones at interval changes.');
-  byId('voice-preview').hidden = !voice;
+  byId('voice-preview').hidden = !voice || workoutIsRunning();
   byId('custom-voice').hidden = field('mode').value !== 'custom' || !voice;
   byId('vibration-setting').hidden = !canVibrate;
   byId('touch-setting').hidden = !canVibrate;
@@ -381,11 +381,18 @@ function persistPreferences() {
 }
 
 preferences.addEventListener('change', (event) => {
-  if (event.target.name === 'audioMode') silenceFeedback();
+  if (event.target.name === 'audioMode') {
+    silenceFeedback();
+    if (workoutIsRunning()) enableAudio();
+  }
+  if (event.target.name === 'awake') {
+    if (pref('awake').checked) void keepAwake();
+    else releaseAwake();
+  }
   persistPreferences();
 });
 byId('play-voice').addEventListener('click', () => {
-  if (audioMode() !== 'voice') return;
+  if (audioMode() !== 'voice' || workoutIsRunning()) return;
   enableAudio();
   void voicePlayer.play('3');
 });
@@ -436,7 +443,7 @@ function enableAudio() {
 }
 
 function tone(kind) {
-  if (screen !== 'workout' || document.hidden || audioMode() !== 'sound' || !audio) return;
+  if (!session || session.pausedAt !== null || audioMode() !== 'sound' || !audio) return;
   if (audio.state !== 'running') {
     const current = session;
     const cueTime = performance.now();
@@ -472,11 +479,11 @@ function tone(kind) {
 function feedback(kind, duration = 0) {
   if (audioVolume()) {
     if (audioMode() === 'sound') tone(kind);
-    else if (kind === 'complete') void voicePlayer.play('Workout complete');
+    else if (kind === 'complete') void voicePlayer.play('Workout complete', undefined, 1000);
     else if (sessionMode === 'custom' && duration > 3000 && (kind === 'active' || kind === 'rest')) {
       const fallback = kind === 'active' ? 'Go' : 'Rest';
       const command = pref(kind === 'active' ? 'goWord' : 'restWord').value.trim();
-      void voicePlayer.play(command || fallback, fallback);
+      void voicePlayer.play(command || fallback, fallback, 1000);
     }
   }
   if (canVibrate && pref('vibration').checked) {
@@ -488,14 +495,13 @@ function feedback(kind, duration = 0) {
 }
 
 async function keepAwake() {
-  if (screen !== 'workout' || !session || session.pausedAt !== null || !canWake || !pref('awake').checked ||
+  if (!workoutIsRunning() || !canWake || !pref('awake').checked ||
       document.visibilityState !== 'visible' || wakePending || (wake && !wake.released)) return;
   wakePending = true;
   const current = session;
   try {
     const requested = await navigator.wakeLock.request('screen');
-    if (session !== current || screen !== 'workout' || document.hidden ||
-        session.pausedAt !== null || session.snapshot().kind === 'complete') await requested.release();
+    if (session !== current || document.hidden || !pref('awake').checked || !workoutIsRunning()) await requested.release();
     else wake = requested;
   } catch {
     // Browsers may deny the wake lock.
@@ -515,12 +521,8 @@ function setText(node, text) {
   if (node.textContent !== text) node.textContent = text;
 }
 
-function render(deliverCues = true) {
-  clearTimeout(tick);
-  if (screen !== 'workout' || !session) return;
-  const state = session.snapshot();
+function renderWorkout(state) {
   const labels = { ready: 'Get ready', active: 'Active', rest: 'Rest', complete: 'Workout complete' };
-  const phaseKey = state.kind + ':' + state.round;
   workout.dataset.phase = state.paused ? 'paused' : state.kind;
   setText(byId('phase'), state.paused ? 'Paused · ' + labels[state.kind] : labels[state.kind]);
   const showHours = state.end - state.start >= 3600 * 1000;
@@ -538,17 +540,30 @@ function render(deliverCues = true) {
   byId('dial').style.setProperty('--sweep', completion * 360 + 'deg');
   setText(pause, state.kind === 'complete' ? 'Repeat' : state.paused ? 'Resume' : 'Pause');
   setText(stop, state.kind === 'complete' ? 'Done' : 'End workout');
-  if (deliverCues && !state.paused && !document.hidden) {
+}
+
+function render() {
+  clearTimeout(tick);
+  if (!session) return;
+  const state = session.snapshot();
+  if (screen === 'workout' && !document.hidden) renderWorkout(state);
+  if (screen === 'setup') updateHomeAction(state);
+  const phaseKey = state.kind + ':' + state.round;
+  const maxLateness = document.hidden ? 950 : 300;
+  if (!state.paused) {
     const entered = phaseKey !== lastPhase;
-    if (entered && state.elapsed - state.start <= 300 && (state.kind !== 'complete' || pref('finish').checked)) {
+    if (entered && state.elapsed - state.start <= maxLateness && (state.kind !== 'complete' || pref('finish').checked)) {
       feedback(state.kind, state.end - state.start);
     }
     if (audioMode() === 'voice') {
-      const edge = warningAt(state, 'countdown', entered ? state.start - 1 : lastElapsed);
-      if (edge && audioVolume()) void voicePlayer.play(edge.spoken);
+      const edge = warningAt(state, 'countdown', entered ? state.start - 1 : lastElapsed, maxLateness);
+      if (edge && audioVolume()) {
+        const cueRemaining = state.end - state.elapsed - (edge.seconds - 1) * 1000;
+        void voicePlayer.play(edge.spoken, undefined, cueRemaining);
+      }
     } else if (!entered) {
       const setting = pref('warning').value;
-      if (warningAt(state, setting === 'custom' ? pref('warningSeconds').value : setting, lastElapsed)) {
+      if (warningAt(state, setting === 'custom' ? pref('warningSeconds').value : setting, lastElapsed, maxLateness)) {
         feedback('warning');
       }
     }
@@ -557,9 +572,11 @@ function render(deliverCues = true) {
   lastElapsed = state.elapsed;
   if (state.kind === 'complete') {
     releaseAwake();
-  } else if (!state.paused && !document.hidden) {
+    if (screen === 'settings') updateSettings();
+  } else if (!state.paused) {
     const untilDigit = state.remaining % 1000 || 1000;
-    tick = setTimeout(render, Math.max(10, Math.min(100, untilDigit, state.remaining)));
+    const refreshInterval = document.hidden || screen !== 'workout' ? 1000 : 100;
+    tick = setTimeout(render, Math.max(10, Math.min(refreshInterval, untilDigit, state.remaining)));
   }
 }
 
@@ -584,10 +601,16 @@ function resumeSession() {
   void keepAwake();
 }
 
-function updateHomeAction() {
-  const parked = session && session.snapshot().kind !== 'complete';
-  setText(byId('start-label'), parked ? 'Resume workout' : 'Start workout');
-  endPaused.hidden = !parked;
+function workoutIsRunning() {
+  const state = session?.snapshot();
+  return Boolean(state && !state.paused && state.kind !== 'complete');
+}
+
+function updateHomeAction(state = session?.snapshot()) {
+  const inProgress = state && state.kind !== 'complete';
+  const label = !inProgress ? 'Start workout' : state.paused ? 'Resume workout' : 'Return to workout';
+  setText(byId('start-label'), label);
+  endFromSetup.hidden = !inProgress;
 }
 
 function refreshHeader() {
@@ -598,12 +621,8 @@ function showScreen(next) {
   if (screen === next) return;
   const previous = screen;
   if (previous === 'setup') setupScroll = scrollY;
-  if (previous === 'workout' && session) {
-    if (session.snapshot().kind === 'complete') silenceFeedback();
-    else pauseSession();
-  }
   if (previous === 'settings') {
-    silenceFeedback();
+    if (!workoutIsRunning()) silenceFeedback();
     if (preferences.checkValidity()) persistPreferences();
     else apply(preferences, savedPreferences);
     clearError(preferences, byId('settings-error'));
@@ -615,7 +634,8 @@ function showScreen(next) {
   settingsButton.hidden = next !== 'setup';
   backButton.hidden = next === 'setup';
   if (next === 'setup') updateHomeAction();
-  if (next === 'workout') render();
+  if (next === 'settings') updateSettings();
+  if (session) render();
   scrollTo(0, next === 'setup' ? setupScroll : 0);
   refreshHeader();
   const target = next === 'setup'
@@ -665,9 +685,8 @@ setup.addEventListener('submit', (event) => {
   event.preventDefault();
   if (returning) return;
   if (session && session.snapshot().kind !== 'complete') {
+    if (session.pausedAt !== null) resumeSession();
     openScreen('workout');
-    resumeSession();
-    render();
     return;
   }
   if (!checkSetup()) return;
@@ -684,38 +703,32 @@ pause.addEventListener('click', () => {
   else resumeSession();
   render();
 });
-stop.addEventListener('click', () => {
-  if (returning) return;
+function endSession() {
   session = null;
   clearTimeout(tick);
   releaseAwake();
   silenceFeedback();
+}
+
+stop.addEventListener('click', () => {
+  if (returning) return;
+  endSession();
   goBack();
 });
-endPaused.addEventListener('click', () => {
-  session = null;
+endFromSetup.addEventListener('click', () => {
+  endSession();
   updateHomeAction();
   setup.querySelector('.start').focus();
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && screen === 'settings') silenceFeedback();
-  if (!session || screen !== 'workout') return;
-  if (document.hidden) {
-    clearTimeout(tick);
-    releaseAwake();
-    silenceFeedback();
-    return;
+  if (!session) return;
+  if (document.hidden) releaseAwake();
+  else if (workoutIsRunning()) {
+    enableAudio();
+    void keepAwake();
   }
-  if (session.pausedAt === null) {
-    if (session.snapshot().kind !== 'complete') {
-      enableAudio();
-      void keepAwake();
-    }
-    lastPhase = null;
-    lastElapsed = session.snapshot().elapsed;
-    render(false);
-  }
+  render();
 });
 
 load();
@@ -731,4 +744,4 @@ if (history.state?.intervalScreen === 'settings' && directSettings) {
   history.replaceState({ intervalScreen: 'setup' }, '', baseUrl);
   if (directSettings) openScreen('settings');
 }
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});

@@ -10,6 +10,7 @@ export class VoicePlayer {
     this.volume = volume;
     this.buffers = new Map();
     this.request = 0;
+    this.expires = Infinity;
     this.source = null;
     this.speech = globalThis.speechSynthesis;
   }
@@ -41,14 +42,18 @@ export class VoicePlayer {
     this.speech?.cancel();
   }
 
+  isCurrent(request) {
+    return request === this.request && performance.now() < this.expires;
+  }
+
   async playRecording(file, request) {
     const context = this.context();
     if (!file || !context) return false;
     try {
       const buffer = await this.buffer(file);
-      if (request !== this.request || document.hidden) return true;
+      if (!this.isCurrent(request)) return true;
       if (context.state !== 'running') await context.resume();
-      if (request !== this.request || document.hidden) return true;
+      if (!this.isCurrent(request)) return true;
       const source = context.createBufferSource();
       const gain = context.createGain();
       source.buffer = buffer;
@@ -68,7 +73,7 @@ export class VoicePlayer {
   }
 
   systemSpeak(text, request, fallback) {
-    if (request !== this.request || document.hidden || !this.speech || !globalThis.SpeechSynthesisUtterance) return false;
+    if (!this.isCurrent(request) || !this.speech || !globalThis.SpeechSynthesisUtterance) return false;
     const english = this.speech.getVoices().filter((voice) => /^en(?:[-_]|$)/i.test(voice.lang));
     const voice = english.find((candidate) => candidate.localService) ?? english[0];
     if (!voice) return false;
@@ -77,15 +82,16 @@ export class VoicePlayer {
     utterance.lang = voice.lang;
     utterance.volume = this.volume();
     utterance.addEventListener('error', () => {
-      if (request === this.request) fallback?.();
+      if (this.isCurrent(request)) fallback?.();
     }, { once: true });
     this.speech.speak(utterance);
     return true;
   }
 
-  async play(text, fallback = text) {
+  async play(text, fallback = text, validFor = Infinity) {
     this.stop();
     const request = this.request;
+    this.expires = performance.now() + validFor;
     const clip = Object.hasOwn(recordings, text) ? recordings[text] : null;
     if (clip) {
       if (!await this.playRecording(clip, request)) this.systemSpeak(text, request);
