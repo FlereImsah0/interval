@@ -15,9 +15,12 @@
 <body>
   <header class="heading">
     <div class="header-inner">
-      <button id="back-button" type="button" class="quiet back-button" data-touch="navigation" hidden><span class="back-arrow" aria-hidden="true"></span> Back</button>
+      <nav class="header-nav" aria-label="App navigation">
+        <button id="back-button" type="button" class="quiet back-button" data-touch="navigation" disabled><span class="back-arrow" aria-hidden="true"></span> Back</button>
+        <button id="home-button" type="button" class="quiet" data-touch="navigation">Home</button>
+      </nav>
       <div class="brand"><img src="./icon.svg" alt="" width="34" height="34" draggable="false"><h1>Interval Timer</h1></div>
-      <button id="settings-button" type="button" class="quiet settings-button" data-touch="navigation"><span class="gear" aria-hidden="true">⚙</span> Settings</button>
+      <button id="settings-button" type="button" class="quiet settings-button" aria-label="Settings" data-touch="navigation"><span class="gear" aria-hidden="true">⚙</span><span class="settings-label">Settings</span></button>
     </div>
   </header>
   <main class="shell" id="main">
@@ -154,6 +157,36 @@
         <p id="settings-error" class="form-error" role="alert" hidden></p>
         <button class="primary" type="submit" data-touch="confirmation">Done</button>
       </form>
+      <nav class="settings-links" aria-label="More about Interval Timer">
+        <a href="#welcome" data-screen="welcome">Welcome</a>
+        <a href="#terms" data-screen="terms">Terms</a>
+        <a href="#privacy" data-screen="privacy">Privacy</a>
+      </nav>
+    </section>
+    <section id="welcome" class="welcome-screen" aria-labelledby="welcome-title" hidden>
+      <h2 id="welcome-title" tabindex="-1">Find your workout rhythm</h2>
+      <p class="welcome-copy">Pick how long to move, how long to rest and how many rounds. Interval Timer tells you when it’s time to switch.</p>
+      <div class="welcome-preview" role="img" aria-label="Example: 30 seconds active, 10 seconds rest, then repeat">
+        <div class="preview-interval preview-active"><span>Active</span><strong>00:30</strong><div class="preview-bar"></div></div>
+        <div class="preview-interval preview-rest"><span>Rest</span><strong>00:10</strong><div class="preview-bar"></div></div>
+      </div>
+      <p class="welcome-copy">Choose tones or a spoken countdown. Turn on vibration if your device supports it.</p>
+      <button id="welcome-start" type="button" class="primary" data-touch="confirmation">Set up a workout</button>
+    </section>
+    <section id="terms" class="legal-screen" aria-labelledby="terms-title" hidden>
+      <h2 id="terms-title" tabindex="-1">Terms</h2>
+      <p>Interval Timer helps you time exercise and rest. Use it at your own pace and in a safe place.</p>
+      <p>The timer is a workout tool. For anything that needs an exact alert, use an appropriate alarm or timer.</p>
+      <p>Some features depend on your device and settings. You can stop using Interval Timer whenever you like.</p>
+      <p class="publisher">Flere's Journey (Adriana Zubović)<br><a href="mailto:flere4apps@gmail.com">flere4apps@gmail.com</a></p>
+    </section>
+    <section id="privacy" class="legal-screen" aria-labelledby="privacy-title" hidden>
+      <h2 id="privacy-title" tabindex="-1">Privacy</h2>
+      <p>You can use this timer without an account. The app has no ads or analytics trackers.</p>
+      <p>Your settings and saved workouts stay on your device. You can remove them by clearing this site’s data or deleting the app. The website host may process basic connection details, such as your IP address, to deliver and protect the site.</p>
+      <p>On iPhone, notification permission lets the timer deliver alerts. On Apple Watch, Health permission lets the timer run during a workout. The timer does not save a workout to Health or send health data to us. You can change these permissions in your device settings.</p>
+      <p>If you email us, we use your address and message to answer.</p>
+      <p class="publisher">Flere's Journey (Adriana Zubović)<br><a href="mailto:flere4apps@gmail.com">flere4apps@gmail.com</a></p>
     </section>
   </main>
 </body>

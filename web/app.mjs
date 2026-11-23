@@ -14,8 +14,11 @@ const favoriteToggle = byId('favorite-toggle');
 const settingsButton = byId('settings-button');
 const backButton = byId('back-button');
 const endFromSetup = byId('end-from-setup');
-const screens = { setup, settings, workout };
-const headings = { setup: byId('setup-title'), settings: byId('settings-title'), workout: byId('phase') };
+const secondaryScreens = ['welcome', 'terms', 'privacy'];
+const screens = { setup, settings, workout, ...Object.fromEntries(secondaryScreens.map((name) => [name, byId(name)])) };
+const headings = { setup: byId('setup-title'), settings: byId('settings-title'), workout: byId('phase'),
+  ...Object.fromEntries(secondaryScreens.map((name) => [name, byId(name + '-title')])) };
+const welcomeKey = 'interval-timer-welcome-seen';
 const themeQuery = matchMedia('(prefers-color-scheme: dark)');
 const touchPatterns = { action: 8, navigation: 14, confirmation: [9, 24, 12] };
 const tones = new Set();
@@ -621,6 +624,9 @@ function showScreen(next) {
   if (screen === next) return;
   const previous = screen;
   if (previous === 'setup') setupScroll = scrollY;
+  if (previous === 'welcome') {
+    try { localStorage.setItem(welcomeKey, '1'); } catch { /* Storage is optional. */ }
+  }
   if (previous === 'settings') {
     if (!workoutIsRunning()) silenceFeedback();
     if (preferences.checkValidity()) persistPreferences();
@@ -632,7 +638,7 @@ function showScreen(next) {
   screen = next;
   for (const [name, element] of Object.entries(screens)) element.hidden = name !== next;
   settingsButton.hidden = next !== 'setup';
-  backButton.hidden = next === 'setup';
+  backButton.disabled = next === 'setup';
   if (next === 'setup') updateHomeAction();
   if (next === 'settings') updateSettings();
   if (session) render();
@@ -645,8 +651,8 @@ function showScreen(next) {
 
 function openScreen(next) {
   if (returning || screen === next) return;
-  const url = next === 'settings' ? '#settings' : '#workout';
-  history.pushState({ intervalScreen: next }, '', url);
+  const depth = (history.state?.intervalDepth ?? 0) + 1;
+  history.pushState({ intervalScreen: next, intervalDepth: depth }, '', '#' + next);
   showScreen(next);
 }
 
@@ -656,16 +662,35 @@ function goBack() {
   history.back();
 }
 
+function goHome() {
+  if (returning) return;
+  if (screen === 'setup') {
+    scrollTo(0, 0);
+    headings.setup.focus({ preventScroll: true });
+    return;
+  }
+  returning = true;
+  history.go(-(history.state?.intervalDepth || 1));
+}
+
 settingsButton.addEventListener('click', () => openScreen('settings'));
+byId('home-button').addEventListener('click', goHome);
+byId('welcome-start').addEventListener('click', goHome);
+settings.querySelector('.settings-links').addEventListener('click', (event) => {
+  const link = event.target.closest('[data-screen]');
+  if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  openScreen(link.dataset.screen);
+});
 backButton.addEventListener('click', goBack);
 window.addEventListener('popstate', (event) => {
   returning = false;
   let next = event.state?.intervalScreen;
   if (next === 'workout' && !session) {
-    history.replaceState({ intervalScreen: 'setup' }, '', location.pathname + location.search);
+    history.replaceState({ intervalScreen: 'setup', intervalDepth: 0 }, '', location.pathname + location.search);
     next = 'setup';
   }
-  showScreen(next === 'workout' || next === 'settings' ? next : 'setup');
+  showScreen(Object.hasOwn(screens, next) ? next : 'setup');
 });
 window.addEventListener('scroll', refreshHeader, { passive: true });
 themeQuery.addEventListener('change', updateSettings);
@@ -736,12 +761,23 @@ updateFavorites();
 updateSettings();
 savedPreferences = values(preferences, preferenceNames);
 history.scrollRestoration = 'manual';
-const directSettings = location.hash === '#settings';
-if (history.state?.intervalScreen === 'settings' && directSettings) {
-  showScreen('settings');
+const direct = location.hash.slice(1);
+const baseURL = location.pathname + location.search;
+const isSecondary = secondaryScreens.includes(direct);
+const recognized = direct === 'settings' || isSecondary;
+if (recognized && history.state?.intervalScreen === direct && history.state?.intervalDepth > 0) {
+  showScreen(direct);
 } else {
-  const baseUrl = location.pathname + location.search;
-  history.replaceState({ intervalScreen: 'setup' }, '', baseUrl);
-  if (directSettings) openScreen('settings');
+  history.replaceState({ intervalScreen: 'setup', intervalDepth: 0 }, '', baseURL);
+  if (isSecondary) {
+    history.pushState({ intervalScreen: 'settings', intervalDepth: 1 }, '', '#settings');
+    openScreen(direct);
+  } else if (direct === 'settings') {
+    openScreen('settings');
+  } else if (!direct) {
+    let seen = false;
+    try { seen = localStorage.getItem(welcomeKey) === '1'; } catch { /* Storage is optional. */ }
+    if (!seen) openScreen('welcome');
+  }
 }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});

@@ -1,4 +1,4 @@
-const cacheName = 'interval-timer-v12';
+const cacheName = 'interval-timer-v13';
 const recordings = ['ready', 'go', 'rest', 'run', 'walk', 'hold', 'relax', 'complete', 'next',
   'one', 'two', 'three', 'three-seconds', 'five-seconds'];
 const shell = ['./index.html', './style.css', './app.mjs', './timer.mjs', './voice.mjs', './icon.svg',
