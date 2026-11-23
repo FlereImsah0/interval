@@ -15,7 +15,7 @@ targets:
     sources:
       - Shared
       - Phone
-      - path: ../../web/welcome-runner.jpg
+      - path: ../../web/welcome-sports.jpg
         buildPhase: resources
       - path: ../../web/voice
         buildPhase: resources
@@ -68,7 +68,7 @@ targets:
     sources:
       - Shared
       - Watch
-      - path: ../../web/welcome-runner.jpg
+      - path: ../../web/welcome-sports.jpg
         buildPhase: resources
       - path: ../../web/voice
         type: folder

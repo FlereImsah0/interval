@@ -16,7 +16,7 @@
   --shadow: 0 10px 30px #102f2410;
   font: 100%/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
 }
-:root[data-theme="dark"] {
+:root[data-theme="dark"], :root[data-screen="welcome"] {
   color-scheme: dark;
   --bg: #0c1018;
   --surface: #151d2a;
@@ -293,7 +293,8 @@ select, #preferences input:not([type="checkbox"], [type="range"]) { color: var(-
 .legal-screen h2 { margin-bottom: 1rem; }
 .welcome-copy, .legal-screen p { color: var(--muted); max-width: 60ch; overflow-wrap: anywhere; }
 .welcome-screen { display: grid; gap: clamp(1rem, 3vw, 1.5rem); }
-.welcome-photo {
+.welcome-sports { margin: 0; }
+.welcome-sports img {
   display: block;
   width: 100%;
   height: auto;
@@ -303,6 +304,15 @@ select, #preferences input:not([type="checkbox"], [type="range"]) { color: var(-
   object-position: center 43%;
   border-radius: clamp(1rem, 3vw, 1.5rem);
   background: var(--soft);
+}
+.welcome-sports figcaption {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .375rem 1rem;
+  margin: .8rem .125rem 0;
+  color: var(--muted);
+  font-size: .875rem;
+  font-weight: 650;
 }
 .welcome-intro h2 { font-size: clamp(1.75rem, 5.4vw, 2.65rem); line-height: 1.1; letter-spacing: -.045em; }
 .welcome-copy { margin: .7rem 0 0; font-size: clamp(1rem, 2.9vw, 1.125rem); }

@@ -150,14 +150,18 @@ function load() {
   }
 }
 
-function updateSettings() {
+function applyTheme() {
   const theme = pref('theme').value;
   document.documentElement.dataset.theme = theme;
-  const dark = theme === 'dark' || (theme === 'auto' && themeQuery.matches);
+  const dark = screen === 'welcome' || theme === 'dark' || (theme === 'auto' && themeQuery.matches);
   androidMessage('theme', { dark });
   document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
     meta.content = dark ? '#0c1018' : '#f3f5f3';
   });
+}
+
+function updateSettings() {
+  applyTheme();
   const unlimited = field('unlimited').checked;
   field('rounds').disabled = unlimited;
   setup.querySelectorAll('[data-adjust="rounds"]').forEach((button) => { button.disabled = unlimited; });
@@ -666,6 +670,8 @@ function showScreen(next) {
   }
 
   screen = next;
+  document.documentElement.dataset.screen = next;
+  applyTheme();
   for (const [name, element] of Object.entries(screens)) element.hidden = name !== next;
   settingsButton.hidden = next !== 'setup';
   backButton.disabled = next === 'setup';

@@ -11,7 +11,9 @@ struct AppleRootView: View {
     let startWorkout: (WorkoutPlan) async -> Void
 
     @AppStorage("welcomeSeen") private var welcomeSeen = false
+    @Environment(\.colorScheme) private var colorScheme
     @State private var path: [TimerPage] = []
+    private var isWelcome: Bool { path.last == .welcome }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,11 +42,18 @@ struct AppleRootView: View {
             case .welcome:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        Image("welcome-runner.jpg", bundle: .main)
+                        Image("welcome-sports.jpg", bundle: .main)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .accessibilityLabel("Runner training on a blue track at dusk")
+                            .accessibilityLabel("Four athletes run, swim, stretch and lift a kettlebell")
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 5) {
+                            ForEach(["Running", "Swimming", "Yoga / Stretching", "HIIT / Gym"], id: \.self) {
+                                Text($0).frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                         Text("A timer for interval training").font(.headline)
                         Text("Set how long to move, how long to rest, and how many rounds to repeat.")
                         Text("A tone or spoken countdown tells you when to switch.")
@@ -68,6 +77,13 @@ struct AppleRootView: View {
                 ])
             case nil:
                 TimerScreen(model: model, notice: notice, startWorkout: startWorkout)
+            }
+        }
+        .environment(\.colorScheme, isWelcome ? .dark : colorScheme)
+        .background {
+            if isWelcome {
+                Color(red: 12.0 / 255, green: 16.0 / 255, blue: 24.0 / 255)
+                    .ignoresSafeArea()
             }
         }
         .onAppear {

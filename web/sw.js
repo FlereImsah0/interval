@@ -1,10 +1,10 @@
-const cacheName = 'interval-timer-v16';
+const cacheName = 'interval-timer-v17';
 const recordings = ['ready', 'go', 'rest', 'run', 'walk', 'hold', 'relax', 'complete', 'next',
   'one', 'two', 'three', 'three-seconds', 'five-seconds'];
 const shell = ['./index.html', './style.css', './app.mjs', './timer.mjs', './voice.mjs', './icon.svg',
   './favicon.ico', './favicon-16.png', './favicon-32.png',
   './apple-touch-icon.png', './icon-192.png', './icon-512.png', './maskable-192.png', './maskable-512.png',
-  './manifest.webmanifest', './welcome-runner.jpg', ...recordings.map((name) => './voice/' + name + '.wav')];
+  './manifest.webmanifest', './welcome-sports.jpg', ...recordings.map((name) => './voice/' + name + '.wav')];
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(cacheName);
