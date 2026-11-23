@@ -1,6 +1,10 @@
 import HealthKit
 import SwiftUI
 
+private enum WorkoutSessionError: Error {
+    case collectionNotStarted
+}
+
 @MainActor
 final class WatchWorkoutSession: NSObject, ObservableObject, HKWorkoutSessionDelegate {
     @Published private(set) var notice: String?
@@ -38,7 +42,17 @@ final class WatchWorkoutSession: NSObject, ObservableObject, HKWorkoutSessionDel
 
             let start = Date.now
             workout.startActivity(with: start)
-            _ = try await collection.beginCollection(withStart: start)
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                collection.beginCollection(withStart: start) { started, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else if started {
+                        continuation.resume()
+                    } else {
+                        continuation.resume(throwing: WorkoutSessionError.collectionNotStarted)
+                    }
+                }
+            }
             return session === workout
         } catch {
             end()
